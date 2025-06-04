@@ -40,6 +40,24 @@ export default function ChatWhatsApp() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'chats' | 'contacts'>('chats');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showEmojiPicker) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showEmojiPicker]);
 
   // Browser notification function
   const showBrowserNotification = (title: string, body: string) => {
@@ -131,12 +149,18 @@ export default function ChatWhatsApp() {
 
       if (messageChatId === activeChat?._id) {
         setMessages(prev => {
-          const exists = prev.some(msg => msg._id === message._id);
+          // Remove any temporary message with same content and replace with real message
+          const filteredMessages = prev.filter(msg =>
+            !(msg._id.startsWith('temp-') && msg.content === message.content && msg.sender === message.sender)
+          );
+
+          // Check if real message already exists
+          const exists = filteredMessages.some(msg => msg._id === message._id);
           if (!exists) {
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-            return [...prev, message];
+            return [...filteredMessages, message];
           }
-          return prev;
+          return filteredMessages;
         });
       }
       fetchChats();
@@ -271,7 +295,9 @@ export default function ChatWhatsApp() {
   const fetchMessages = async (chatId: string) => {
     setLoading(true);
     try {
+      console.log('🔍 Fetching messages for chat:', chatId);
       const response = await axios.get(`/chats/messages/${chatId}`);
+      console.log('📨 Fetched messages:', response.data);
       setMessages(response.data || []);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (error) {
@@ -333,7 +359,21 @@ export default function ChatWhatsApp() {
     };
 
     console.log('Sending message:', payload);
+
+    // Create a temporary message object for immediate display
+    const tempMessage: Message = {
+      _id: `temp-${Date.now()}`, // Temporary ID
+      content: newMessage.trim(),
+      sender: currentUser._id,
+      chat: activeChat._id,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add message to local state immediately
+    setMessages(prev => [...prev, tempMessage]);
     setNewMessage('');
+
+    // Emit to socket
     socket.emit('sendMessage', payload);
 
     // Auto-scroll to bottom after sending
@@ -362,26 +402,26 @@ export default function ChatWhatsApp() {
   if (!currentUser) return null;
 
   return (
-    <div className="h-screen bg-gray-100 flex">
+    <div className="h-screen bg-gray-100 flex items-center justify-center">
       {/* WhatsApp Web Layout */}
-      <div className="w-full max-w-7xl mx-auto bg-white shadow-2xl flex">
-        
+      <div className="w-full max-w-6xl h-full bg-white shadow-2xl flex">
+
         {/* Left Panel - Chat List */}
-        <div className="w-[400px] border-r border-gray-200 flex flex-col">
+        <div className="w-[30%] min-w-[320px] max-w-[400px] border-r border-gray-200 flex flex-col bg-white">
           
           {/* Header */}
-          <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+          <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between h-10">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-medium text-gray-700">
                     {currentUser.username?.charAt(0).toUpperCase() || 'U'}
                   </span>
                 </div>
-                <span className="font-medium text-gray-800">{currentUser.username}</span>
+                <span className="font-medium text-gray-800 truncate">{currentUser.username}</span>
               </div>
-              
-              <div className="flex items-center space-x-2">
+
+              <div className="flex items-center space-x-1 flex-shrink-0">
                 <button
                   onClick={() => setActiveTab('contacts')}
                   className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
@@ -391,7 +431,7 @@ export default function ChatWhatsApp() {
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                   </svg>
                 </button>
-                
+
                 <button
                   onClick={() => { fetchChats(); fetchUsers(); }}
                   className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
@@ -401,7 +441,7 @@ export default function ChatWhatsApp() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                   </svg>
                 </button>
-                
+
                 <button
                   onClick={handleLogout}
                   className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
@@ -417,36 +457,49 @@ export default function ChatWhatsApp() {
 
           {/* Search Bar */}
           <div className="px-3 py-2 bg-white border-b border-gray-200">
-            <div className="relative">
+            <div className="relative flex items-center">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <svg
+                  className="text-gray-400"
+                  style={{ width: '18px', height: '18px' }}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
               <input
                 type="text"
                 placeholder="Search or start new chat"
                 className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500"
               />
-              <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-              </svg>
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200 bg-white">
+          <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
             <button
               onClick={() => setActiveTab('chats')}
-              className={`flex-1 py-3 text-sm font-medium ${
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'chats'
-                  ? 'text-green-600 border-b-2 border-green-600'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'text-green-600 border-b-2 border-green-600 bg-white'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
             >
               Chats
             </button>
             <button
               onClick={() => setActiveTab('contacts')}
-              className={`flex-1 py-3 text-sm font-medium ${
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'contacts'
-                  ? 'text-green-600 border-b-2 border-green-600'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'text-green-600 border-b-2 border-green-600 bg-white'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
             >
               Contacts
@@ -554,29 +607,29 @@ export default function ChatWhatsApp() {
         </div>
 
         {/* Right Panel - Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col bg-white">
           {activeChat ? (
             <>
               {/* Chat Header */}
-              <div className="bg-gray-100 px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
+              <div className="bg-gray-100 px-6 py-4 border-b border-gray-200 flex-shrink-0">
+                <div className="flex items-center justify-between h-10">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-medium text-gray-700">
                         {getOtherUser(activeChat)?.username?.charAt(0).toUpperCase() || 'U'}
                       </span>
                     </div>
-                    <div>
-                      <h2 className="font-medium text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-medium text-gray-900 truncate">
                         {getOtherUser(activeChat)?.username || 'Unknown'}
                       </h2>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 truncate">
                         {getOtherUser(activeChat)?.online ? 'Online' : 'Last seen recently'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1 flex-shrink-0">
                     <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
                       <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -684,10 +737,13 @@ export default function ChatWhatsApp() {
               </div>
 
               {/* Message Input */}
-              <div className="bg-gray-100 px-4 py-3 border-t border-gray-200">
+              <div className="bg-gray-100 px-4 py-3 border-t border-gray-200 flex-shrink-0">
                 <div className="flex items-center space-x-3">
-                  <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0 relative"
+                  >
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/>
                       <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
                       <line x1="9" y1="9" x2="9.01" y2="9"/>
@@ -699,7 +755,7 @@ export default function ChatWhatsApp() {
                     <input
                       type="text"
                       placeholder="Type a message"
-                      className="w-full px-4 py-3 bg-white rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full px-4 py-3 pr-12 bg-white rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={(e) => {
@@ -709,8 +765,8 @@ export default function ChatWhatsApp() {
                         }
                       }}
                     />
-                    <button className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                      <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                       </svg>
                     </button>
@@ -719,17 +775,37 @@ export default function ChatWhatsApp() {
                   <button
                     onClick={sendMessage}
                     disabled={!newMessage.trim()}
-                    className={`p-3 rounded-full transition-all ${
+                    className={`p-3 rounded-full transition-all flex-shrink-0 ${
                       newMessage.trim()
                         ? 'bg-green-500 hover:bg-green-600 text-white'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                     </svg>
                   </button>
                 </div>
+
+                {/* Emoji Picker */}
+                {showEmojiPicker && (
+                  <div className="absolute bottom-16 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
+                    <div className="grid grid-cols-8 gap-2 w-64">
+                      {['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'].map((emoji, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setNewMessage(prev => prev + emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          className="text-xl hover:bg-gray-100 rounded p-1 transition-colors"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           ) : (

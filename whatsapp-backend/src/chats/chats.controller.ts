@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +13,12 @@ import { AuthGuard } from '@nestjs/passport';
 import { ChatsService } from './chats.service';
 import { AuthenticatedRequest } from 'src/common/request-user.interface';
 import { JoinRoomDto } from './dto/join-room.dto';
+import {
+  StandardThrottle,
+  MessageThrottle,
+  LenientThrottle,
+  StrictThrottle,
+} from '../throttler/throttler.decorators';
 
 @Controller('chats')
 @UseGuards(AuthGuard('jwt'))
@@ -20,6 +27,7 @@ export class ChatsController {
 
   // Get all chats for the authenticated user
   @Get('my-chats')
+  @LenientThrottle() // 20 requests per 60 seconds for reading chats
   getMyChats(@Req() req: AuthenticatedRequest) {
     // get the chats with all other users he did/ for unique user their is only 1 unique chatId
     const userId = req.user._id;
@@ -28,6 +36,7 @@ export class ChatsController {
 
   // Get all chats for a specific user (keep for backward compatibility)
   @Get('user/:userId')
+  @LenientThrottle() // 20 requests per 60 seconds for reading chats
   getUserChats(@Param('userId') userId: string) {
     console.log('Getting chats for user:', userId);
     return this.chatsService.getUserChats(userId);
@@ -35,6 +44,7 @@ export class ChatsController {
 
   // Create or get existing chat with another user (FIXED)
   @Post('create')
+  @StandardThrottle() // 10 requests per 60 seconds for creating chats
   async createChatRoom(
     @Req() req: AuthenticatedRequest,
     @Body() body: { receiverId?: string; senderId?: string },
@@ -113,6 +123,7 @@ export class ChatsController {
   }
 
   @Post('message')
+  @MessageThrottle() // 15 requests per 60 seconds for sending messages
   async sendMessage(
     @Body() body: { senderId: string; chatId: string; content: string },
   ) {
@@ -133,6 +144,7 @@ export class ChatsController {
 
   // Cleanup duplicate chats (run this once to fix existing data)
   @Post('cleanup-duplicates')
+  @StrictThrottle() // 5 requests per 60 seconds for cleanup operations
   async cleanupDuplicateChats() {
     return this.chatsService.cleanupDuplicateChats();
   }
@@ -144,8 +156,30 @@ export class ChatsController {
   }
 
   @Get('messages/:chatId')
-  getMessages(@Param('chatId') chatId: string) {
-    return this.chatsService.getMessages(chatId);
+  async getMessages(
+    @Param('chatId') chatId: string,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    try {
+      console.log('🔍 Getting messages for chat:', chatId);
+      const messageLimit = limit ? parseInt(limit) : 50;
+      const messageSkip = skip ? parseInt(skip) : 0;
+
+      const startTime = Date.now();
+      const messages = await this.chatsService.getMessages(
+        chatId,
+        messageLimit,
+        messageSkip,
+      );
+      const duration = Date.now() - startTime;
+
+      console.log(`✅ Fetched ${messages.length} messages in ${duration}ms`);
+      return messages;
+    } catch (error) {
+      console.error('❌ Error fetching messages:', error);
+      throw error;
+    }
   }
 
   // Notification endpoints

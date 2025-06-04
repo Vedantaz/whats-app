@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ChatsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ChatsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -20,19 +21,29 @@ const message_scheam_1 = require("./schema/message.scheam");
 const notification_schema_1 = require("./schema/notification.schema");
 const mongoose_2 = require("mongoose");
 const users_service_1 = require("../users/users.service");
-let ChatsService = class ChatsService {
+const redis_service_1 = require("../redis/redis.service");
+let ChatsService = ChatsService_1 = class ChatsService {
     chatModel;
     messageModel;
     notificationModel;
     usersService;
-    constructor(chatModel, messageModel, notificationModel, usersService) {
+    redisService;
+    logger = new common_1.Logger(ChatsService_1.name);
+    constructor(chatModel, messageModel, notificationModel, usersService, redisService) {
         this.chatModel = chatModel;
         this.messageModel = messageModel;
         this.notificationModel = notificationModel;
         this.usersService = usersService;
+        this.redisService = redisService;
     }
     async getUserChats(userId) {
         try {
+            const cachedChats = await this.redisService.getUserChats(userId);
+            if (cachedChats && cachedChats.length > 0) {
+                this.logger.debug(`Cache HIT: Found ${cachedChats.length} chats for user ${userId}`);
+                return cachedChats;
+            }
+            this.logger.debug(`Cache MISS: Fetching chats from database for user ${userId}`);
             const userObjectId = new mongoose_2.Types.ObjectId(userId);
             console.log('Fetching chats for user:', userId, '&', 'userObjectId:');
             const chats = await this.chatModel
@@ -68,6 +79,8 @@ let ChatsService = class ChatsService {
                     : 0;
                 return bTime - aTime;
             });
+            await this.redisService.cacheUserChats(userId, chatsWithAllMessages, 1800);
+            this.logger.debug(`Cached ${chatsWithAllMessages.length} chats for user ${userId}`);
             return chatsWithAllMessages;
         }
         catch (error) {
@@ -141,28 +154,64 @@ let ChatsService = class ChatsService {
         await this.chatModel.findByIdAndUpdate(chatId, { updatedAt: new Date() });
         return message.populate('sender', '-password');
     }
-    async getMessages(chatId) {
-        return this.messageModel
-            .find({ chat: chatId })
-            .populate('sender', '-password')
-            .sort({ createdAt: 1 });
+    async getMessages(chatId, limit = 50, skip = 0) {
+        try {
+            console.log(`🔍 Fetching messages for chat: ${chatId}, limit: ${limit}, skip: ${skip}`);
+            if (skip === 0) {
+                const cachedMessages = await this.redisService.getRecentMessages(chatId);
+                if (cachedMessages && cachedMessages.length > 0) {
+                    this.logger.debug(`Cache HIT: Found ${cachedMessages.length} messages for chat ${chatId}`);
+                    return cachedMessages.slice(0, limit);
+                }
+            }
+            this.logger.debug(`Cache MISS: Fetching messages from database for chat ${chatId}`);
+            const startTime = Date.now();
+            const messages = await this.messageModel
+                .find({ chat: chatId })
+                .populate('sender', 'username _id')
+                .sort({ createdAt: 1 })
+                .skip(skip)
+                .limit(limit)
+                .lean()
+                .exec();
+            const queryTime = Date.now() - startTime;
+            console.log(`📊 Database query took: ${queryTime}ms for ${messages.length} messages`);
+            if (skip === 0) {
+                await this.redisService.cacheRecentMessages(chatId, messages, 1800);
+                this.logger.debug(`Cached ${messages.length} messages for chat ${chatId}`);
+            }
+            return messages;
+        }
+        catch (error) {
+            this.logger.error(`Error fetching messages for chat ${chatId}:`, error);
+            throw error;
+        }
     }
     async createMessage(dto) {
-        const chatObjectId = new mongoose_2.Types.ObjectId(dto.chatId);
-        const senderObjectId = new mongoose_2.Types.ObjectId(dto.senderId);
-        const message = new this.messageModel({
-            sender: senderObjectId,
-            chat: chatObjectId,
-            content: dto.content,
-        });
-        await message.save();
-        await this.chatModel.findByIdAndUpdate(dto.chatId, {
-            updatedAt: new Date(),
-        });
-        return await this.messageModel
-            .findById(message._id)
-            .populate('sender', '-password')
-            .populate('chat');
+        try {
+            const chatObjectId = new mongoose_2.Types.ObjectId(dto.chatId);
+            const senderObjectId = new mongoose_2.Types.ObjectId(dto.senderId);
+            const message = new this.messageModel({
+                sender: senderObjectId,
+                chat: chatObjectId,
+                content: dto.content,
+            });
+            await message.save();
+            await this.chatModel.findByIdAndUpdate(dto.chatId, {
+                updatedAt: new Date(),
+            });
+            await this.invalidateMessageCaches(dto.chatId, dto.senderId);
+            const populatedMessage = await this.messageModel
+                .findById(message._id)
+                .populate('sender', '-password')
+                .populate('chat');
+            this.logger.debug(`Created message ${message._id} in chat ${dto.chatId}`);
+            return populatedMessage;
+        }
+        catch (error) {
+            this.logger.error(`Error creating message:`, error);
+            throw error;
+        }
     }
     async getChatById(chatId) {
         try {
@@ -237,6 +286,25 @@ let ChatsService = class ChatsService {
         catch (error) {
             console.error('Error marking notification as delivered:', error);
             throw error;
+        }
+    }
+    async invalidateMessageCaches(chatId, senderId) {
+        try {
+            await this.redisService.invalidateChatMessages(chatId);
+            await this.redisService.invalidateUserChats(senderId);
+            const chat = await this.chatModel.findById(chatId).lean();
+            if (chat && chat.users) {
+                for (const userId of chat.users) {
+                    const userIdString = userId.toString();
+                    if (userIdString !== senderId) {
+                        await this.redisService.invalidateUserChats(userIdString);
+                    }
+                }
+            }
+            this.logger.debug(`Invalidated caches for chat ${chatId} and related users`);
+        }
+        catch (error) {
+            this.logger.error('Error invalidating caches:', error);
         }
     }
     async cleanupDuplicateChats() {
@@ -343,7 +411,7 @@ let ChatsService = class ChatsService {
     }
 };
 exports.ChatsService = ChatsService;
-exports.ChatsService = ChatsService = __decorate([
+exports.ChatsService = ChatsService = ChatsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(chat_schema_1.Chat.name)),
     __param(1, (0, mongoose_1.InjectModel)(message_scheam_1.Message.name)),
@@ -352,6 +420,7 @@ exports.ChatsService = ChatsService = __decorate([
     __metadata("design:paramtypes", [mongoose_2.Model,
         mongoose_2.Model,
         mongoose_2.Model,
-        users_service_1.UsersService])
+        users_service_1.UsersService,
+        redis_service_1.RedisService])
 ], ChatsService);
 //# sourceMappingURL=chats.service.js.map

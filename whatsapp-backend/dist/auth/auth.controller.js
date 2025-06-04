@@ -18,6 +18,7 @@ const auth_service_1 = require("./auth.service");
 const register_dto_1 = require("./dto/register.dto");
 const login_dto_1 = require("./dto/login.dto");
 const passport_1 = require("@nestjs/passport");
+const throttler_decorators_1 = require("../throttler/throttler.decorators");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -36,6 +37,7 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('register-user'),
+    (0, throttler_decorators_1.AuthThrottle)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [register_dto_1.registerDto]),
@@ -43,6 +45,7 @@ __decorate([
 ], AuthController.prototype, "registerUser", null);
 __decorate([
     (0, common_1.Post)('login-user'),
+    (0, throttler_decorators_1.AuthThrottle)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [login_dto_1.LoginDto]),
@@ -51,6 +54,7 @@ __decorate([
 __decorate([
     (0, common_1.Get)('profile'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    (0, throttler_decorators_1.LenientThrottle)(),
     __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

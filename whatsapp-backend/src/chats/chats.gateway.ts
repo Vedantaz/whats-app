@@ -13,6 +13,7 @@ import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { ChatsService } from './chats.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UsersService } from '../users/users.service';
+import { RedisService } from '../redis/redis.service';
 
 interface UserSocket {
   userId: string;
@@ -33,6 +34,7 @@ export class ChatGateway
     private readonly chatService: ChatsService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    private readonly redisService: RedisService,
   ) {}
 
   afterInit(server: Server) {
@@ -43,7 +45,7 @@ export class ChatGateway
     this.logger.log(`Client connected: ${client.id}`);
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
 
     // Find and remove the disconnected user
@@ -68,6 +70,9 @@ export class ChatGateway
           '📊 Updated online users after disconnect:',
           onlineUsers.map((u) => `${u.username} (${u.userId})`),
         );
+
+        // Remove from Redis
+        await this.redisService.setUserOffline(userId);
 
         // Notify all clients about the user's offline status
         this.server.emit('userStatusChange', {
@@ -108,9 +113,17 @@ export class ChatGateway
       );
 
       // Store the user's connection with full details
-      this.connectedUsers.set(userId, {
+      const userSocketData = {
         userId,
         socketId: client.id,
+        username: user.username,
+        email: user.email,
+      };
+
+      this.connectedUsers.set(userId, userSocketData);
+
+      // Store in Redis for persistence and scalability
+      await this.redisService.setUserOnline(userId, client.id, {
         username: user.username,
         email: user.email,
       });

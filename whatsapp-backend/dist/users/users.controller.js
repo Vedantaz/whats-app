@@ -16,6 +16,7 @@ exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
 const users_service_1 = require("./users.service");
 const passport_1 = require("@nestjs/passport");
+const throttler_decorators_1 = require("../throttler/throttler.decorators");
 let UsersController = class UsersController {
     usersService;
     constructor(usersService) {
@@ -40,6 +41,7 @@ let UsersController = class UsersController {
 exports.UsersController = UsersController;
 __decorate([
     (0, common_1.Get)('search'),
+    (0, throttler_decorators_1.StandardThrottle)(),
     __param(0, (0, common_1.Query)('query')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -47,12 +49,14 @@ __decorate([
 ], UsersController.prototype, "searchUsers", null);
 __decorate([
     (0, common_1.Get)(),
+    (0, throttler_decorators_1.LenientThrottle)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "getAllUsers", null);
 __decorate([
     (0, common_1.Get)('email'),
+    (0, throttler_decorators_1.StandardThrottle)(),
     __param(0, (0, common_1.Query)('email')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -60,6 +64,7 @@ __decorate([
 ], UsersController.prototype, "getUser", null);
 __decorate([
     (0, common_1.Get)('profile'),
+    (0, throttler_decorators_1.LenientThrottle)(),
     __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -67,6 +72,7 @@ __decorate([
 ], UsersController.prototype, "getProfile", null);
 __decorate([
     (0, common_1.Get)('online'),
+    (0, throttler_decorators_1.LenientThrottle)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

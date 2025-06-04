@@ -19,15 +19,18 @@ const common_1 = require("@nestjs/common");
 const chats_service_1 = require("./chats.service");
 const send_message_dto_1 = require("./dto/send-message.dto");
 const users_service_1 = require("../users/users.service");
+const redis_service_1 = require("../redis/redis.service");
 let ChatGateway = class ChatGateway {
     chatService;
     usersService;
+    redisService;
     server;
     logger = new common_1.Logger('ChatGateway');
     connectedUsers = new Map();
-    constructor(chatService, usersService) {
+    constructor(chatService, usersService, redisService) {
         this.chatService = chatService;
         this.usersService = usersService;
+        this.redisService = redisService;
     }
     afterInit(server) {
         this.logger.log('WebSocket Initialized');
@@ -35,7 +38,7 @@ let ChatGateway = class ChatGateway {
     handleConnection(client) {
         this.logger.log(`Client connected: ${client.id}`);
     }
-    handleDisconnect(client) {
+    async handleDisconnect(client) {
         this.logger.log(`Client disconnected: ${client.id}`);
         for (const [userId, userSocket] of this.connectedUsers.entries()) {
             if (userSocket.socketId === client.id) {
@@ -47,6 +50,7 @@ let ChatGateway = class ChatGateway {
                     email: user.email,
                 }));
                 console.log('📊 Updated online users after disconnect:', onlineUsers.map((u) => `${u.username} (${u.userId})`));
+                await this.redisService.setUserOffline(userId);
                 this.server.emit('userStatusChange', {
                     userId,
                     username: userSocket.username,
@@ -67,9 +71,14 @@ let ChatGateway = class ChatGateway {
                 return { status: 'error', message: 'User not found' };
             }
             console.log(`🟢 Setting user ${user.username} (${userId}) online with socket ${client.id}`);
-            this.connectedUsers.set(userId, {
+            const userSocketData = {
                 userId,
                 socketId: client.id,
+                username: user.username,
+                email: user.email,
+            };
+            this.connectedUsers.set(userId, userSocketData);
+            await this.redisService.setUserOnline(userId, client.id, {
                 username: user.username,
                 email: user.email,
             });
@@ -287,6 +296,7 @@ exports.ChatGateway = ChatGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({ cors: true }),
     __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => users_service_1.UsersService))),
     __metadata("design:paramtypes", [chats_service_1.ChatsService,
-        users_service_1.UsersService])
+        users_service_1.UsersService,
+        redis_service_1.RedisService])
 ], ChatGateway);
 //# sourceMappingURL=chats.gateway.js.map

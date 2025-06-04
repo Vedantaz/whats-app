@@ -3,6 +3,7 @@ import {
   NotFoundException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Chat } from './schema/chat.schema';
@@ -12,9 +13,12 @@ import { Model, Types } from 'mongoose';
 import { SendMessageDto } from './dto/send-message.dto';
 import { JoinRoomDto } from './dto/join-room.dto';
 import { UsersService } from '../users/users.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ChatsService {
+  private readonly logger = new Logger(ChatsService.name);
+
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<Chat>,
     @InjectModel(Message.name) private messageModel: Model<Message>,
@@ -22,10 +26,24 @@ export class ChatsService {
     private notificationModel: Model<Notification>,
     @Inject(forwardRef(() => UsersService))
     private usersService: UsersService,
+    private redisService: RedisService,
   ) {}
 
   async getUserChats(userId: string) {
     try {
+      // Check Redis cache first
+      const cachedChats = await this.redisService.getUserChats(userId);
+      if (cachedChats && cachedChats.length > 0) {
+        this.logger.debug(
+          `Cache HIT: Found ${cachedChats.length} chats for user ${userId}`,
+        );
+        return cachedChats;
+      }
+
+      this.logger.debug(
+        `Cache MISS: Fetching chats from database for user ${userId}`,
+      );
+
       // Convert userId to ObjectId for proper MongoDB query
       const userObjectId = new Types.ObjectId(userId);
 
@@ -83,6 +101,16 @@ export class ChatsService {
           : 0;
         return bTime - aTime;
       });
+
+      // Cache the result for 30 minutes
+      await this.redisService.cacheUserChats(
+        userId,
+        chatsWithAllMessages,
+        1800,
+      );
+      this.logger.debug(
+        `Cached ${chatsWithAllMessages.length} chats for user ${userId}`,
+      );
 
       return chatsWithAllMessages;
     } catch (error) {
@@ -198,38 +226,95 @@ export class ChatsService {
     return message.populate('sender', '-password');
   }
 
-  async getMessages(chatId: string) {
-    return this.messageModel
-      .find({ chat: chatId })
-      .populate('sender', '-password')
-      .sort({ createdAt: 1 });
+  async getMessages(chatId: string, limit: number = 50, skip: number = 0) {
+    try {
+      console.log(
+        `🔍 Fetching messages for chat: ${chatId}, limit: ${limit}, skip: ${skip}`,
+      );
+
+      // Check Redis cache first (only for recent messages)
+      if (skip === 0) {
+        const cachedMessages =
+          await this.redisService.getRecentMessages(chatId);
+        if (cachedMessages && cachedMessages.length > 0) {
+          this.logger.debug(
+            `Cache HIT: Found ${cachedMessages.length} messages for chat ${chatId}`,
+          );
+          return cachedMessages.slice(0, limit);
+        }
+      }
+
+      this.logger.debug(
+        `Cache MISS: Fetching messages from database for chat ${chatId}`,
+      );
+
+      // Optimized database query with indexes
+      const startTime = Date.now();
+      const messages = await this.messageModel
+        .find({ chat: chatId })
+        .populate('sender', 'username _id') // Only fetch needed fields
+        .sort({ createdAt: 1 }) // Sort by creation time
+        .skip(skip)
+        .limit(limit)
+        .lean() // Use lean for better performance
+        .exec();
+
+      const queryTime = Date.now() - startTime;
+      console.log(
+        `📊 Database query took: ${queryTime}ms for ${messages.length} messages`,
+      );
+
+      // Cache the result for 30 minutes (only if it's recent messages)
+      if (skip === 0) {
+        await this.redisService.cacheRecentMessages(chatId, messages, 1800);
+        this.logger.debug(
+          `Cached ${messages.length} messages for chat ${chatId}`,
+        );
+      }
+
+      return messages;
+    } catch (error) {
+      this.logger.error(`Error fetching messages for chat ${chatId}:`, error);
+      throw error;
+    }
   }
 
   async createMessage(dto: SendMessageDto) {
-    // Convert string IDs to ObjectIds
-    const chatObjectId = new Types.ObjectId(dto.chatId);
-    const senderObjectId = new Types.ObjectId(dto.senderId);
+    try {
+      // Convert string IDs to ObjectIds
+      const chatObjectId = new Types.ObjectId(dto.chatId);
+      const senderObjectId = new Types.ObjectId(dto.senderId);
 
-    // Create message using new and save
-    const message = new this.messageModel({
-      sender: senderObjectId,
-      chat: chatObjectId,
-      content: dto.content,
-    });
+      // Create message using new and save
+      const message = new this.messageModel({
+        sender: senderObjectId,
+        chat: chatObjectId,
+        content: dto.content,
+      });
 
-    // Save the message
-    await message.save();
+      // Save the message
+      await message.save();
 
-    // Update chat's updatedAt timestamp
-    await this.chatModel.findByIdAndUpdate(dto.chatId, {
-      updatedAt: new Date(),
-    });
+      // Update chat's updatedAt timestamp
+      await this.chatModel.findByIdAndUpdate(dto.chatId, {
+        updatedAt: new Date(),
+      });
 
-    // Return populated message
-    return await this.messageModel
-      .findById(message._id)
-      .populate('sender', '-password')
-      .populate('chat');
+      // Invalidate related caches
+      await this.invalidateMessageCaches(dto.chatId, dto.senderId);
+
+      // Return populated message
+      const populatedMessage = await this.messageModel
+        .findById(message._id)
+        .populate('sender', '-password')
+        .populate('chat');
+
+      this.logger.debug(`Created message ${message._id} in chat ${dto.chatId}`);
+      return populatedMessage;
+    } catch (error) {
+      this.logger.error(`Error creating message:`, error);
+      throw error;
+    }
   }
 
   async getChatById(chatId: string) {
@@ -316,6 +401,35 @@ export class ChatsService {
     } catch (error) {
       console.error('Error marking notification as delivered:', error);
       throw error;
+    }
+  }
+
+  // Cache invalidation methods
+  private async invalidateMessageCaches(chatId: string, senderId: string) {
+    try {
+      // Invalidate chat messages cache
+      await this.redisService.invalidateChatMessages(chatId);
+
+      // Invalidate user chats cache for sender
+      await this.redisService.invalidateUserChats(senderId);
+
+      // Get chat participants and invalidate their caches too
+      const chat = await this.chatModel.findById(chatId).lean();
+      if (chat && chat.users) {
+        for (const userId of chat.users) {
+          const userIdString = userId.toString();
+          if (userIdString !== senderId) {
+            await this.redisService.invalidateUserChats(userIdString);
+          }
+        }
+      }
+
+      this.logger.debug(
+        `Invalidated caches for chat ${chatId} and related users`,
+      );
+    } catch (error) {
+      this.logger.error('Error invalidating caches:', error);
+      // Don't throw error here as cache invalidation failure shouldn't break the main flow
     }
   }
 

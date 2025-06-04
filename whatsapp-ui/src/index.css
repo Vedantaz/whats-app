@@ -58,71 +58,74 @@
 svg {
   flex-shrink: 0;
 }
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* Reset and base styles for WhatsApp-like chat app */
+* {
+  box-sizing: border-box;
+}
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+#root {
+  height: 100vh;
+  width: 100vw;
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+/* Ensure proper flex behavior */
+.flex {
+  display: flex !important;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+.items-center {
+  align-items: center !important;
 }
 
+.justify-between {
+  justify-content: space-between !important;
+}
+
+.justify-center {
+  justify-content: center !important;
+}
+
+.space-x-1 > * + * {
+  margin-left: 0.25rem !important;
+}
+
+.space-x-2 > * + * {
+  margin-left: 0.5rem !important;
+}
+
+.space-x-3 > * + * {
+  margin-left: 0.75rem !important;
+}
+
+/* Fix for flex-shrink */
+.flex-shrink-0 {
+  flex-shrink: 0 !important;
+}
+
+.flex-1 {
+  flex: 1 1 0% !important;
+}
+
+/* Ensure buttons don't have default styling conflicts */
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Ensure inputs work properly */
+input {
+  font: inherit;
 }

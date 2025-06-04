@@ -17,20 +17,46 @@ const users_module_1 = require("./users/users.module");
 const messages_module_1 = require("./messages/messages.module");
 const chats_module_1 = require("./chats/chats.module");
 const jwt_1 = require("@nestjs/jwt");
+const redis_module_1 = require("./redis/redis.module");
+const core_1 = require("@nestjs/core");
+const throttler_1 = require("@nestjs/throttler");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            throttler_1.ThrottlerModule.forRoot([
+                {
+                    name: 'short',
+                    ttl: 60000,
+                    limit: 10,
+                },
+                {
+                    name: 'medium',
+                    ttl: 300000,
+                    limit: 50,
+                },
+                {
+                    name: 'long',
+                    ttl: 3600000,
+                    limit: 200,
+                },
+            ]),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 envFilePath: '.env',
             }),
+            redis_module_1.RedisModule,
             mongoose_1.MongooseModule.forRootAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => ({
                     uri: configService.get('MONGODB_URI'),
+                    retryWrites: true,
+                    retryReads: true,
+                    maxPoolSize: 10,
+                    serverSelectionTimeoutMS: 5000,
+                    socketTimeoutMS: 45000,
                 }),
                 inject: [config_1.ConfigService],
             }),
@@ -48,7 +74,13 @@ exports.AppModule = AppModule = __decorate([
             messages_module_1.MessagesModule,
         ],
         controllers: [app_controller_1.AppController],
-        providers: [app_service_1.AppService],
+        providers: [
+            app_service_1.AppService,
+            {
+                provide: core_1.APP_GUARD,
+                useClass: throttler_1.ThrottlerGuard,
+            },
+        ],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

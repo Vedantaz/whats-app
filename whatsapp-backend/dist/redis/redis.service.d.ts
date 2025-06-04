@@ -1,0 +1,31 @@
+import { Cache } from 'cache-manager';
+export declare class RedisService {
+    private cacheManager;
+    private readonly logger;
+    constructor(cacheManager: Cache);
+    get<T>(key: string): Promise<T | undefined>;
+    set(key: string, value: any, ttl?: number): Promise<void>;
+    del(key: string): Promise<void>;
+    reset(): Promise<void>;
+    cacheUserSessions(userId: string, sessionData: any, ttl?: number): Promise<void>;
+    getUserSession(userId: string): Promise<any>;
+    removeUserSession(userId: string): Promise<void>;
+    setUserOnline(userId: string, socketId: string, userInfo: any): Promise<void>;
+    setUserOffline(userId: string): Promise<void>;
+    getOnlineUser(userId: string): Promise<any>;
+    getAllOnlineUsers(): Promise<any[]>;
+    cacheRecentMessages(chatId: string, messages: any[], ttl?: number): Promise<void>;
+    getRecentMessages(chatId: string): Promise<any[]>;
+    invalidateChatMessages(chatId: string): Promise<void>;
+    cacheUserChats(userId: string, chats: any[], ttl?: number): Promise<void>;
+    getUserChats(userId: string): Promise<any[]>;
+    invalidateUserChats(userId: string): Promise<void>;
+    cacheUserNotifications(userId: string, notifications: any[], ttl?: number): Promise<void>;
+    getUserNotifications(userId: string): Promise<any[]>;
+    invalidateUserNotifications(userId: string): Promise<void>;
+    checkRateLimit(key: string, limit: number, windowMs: number): Promise<boolean>;
+    setUserTyping(chatId: string, userId: string, ttl?: number): Promise<void>;
+    removeUserTyping(chatId: string, userId: string): Promise<void>;
+    getTypingUsers(chatId: string): Promise<string[]>;
+    healthCheck(): Promise<boolean>;
+}

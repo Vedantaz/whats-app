@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const chats_service_1 = require("./chats.service");
 const join_room_dto_1 = require("./dto/join-room.dto");
+const throttler_decorators_1 = require("../throttler/throttler.decorators");
 let ChatsController = class ChatsController {
     chatsService;
     constructor(chatsService) {
@@ -83,8 +84,21 @@ let ChatsController = class ChatsController {
     async getAllChatsDebug() {
         return this.chatsService.getAllChatsDebug();
     }
-    getMessages(chatId) {
-        return this.chatsService.getMessages(chatId);
+    async getMessages(chatId, limit, skip) {
+        try {
+            console.log('🔍 Getting messages for chat:', chatId);
+            const messageLimit = limit ? parseInt(limit) : 50;
+            const messageSkip = skip ? parseInt(skip) : 0;
+            const startTime = Date.now();
+            const messages = await this.chatsService.getMessages(chatId, messageLimit, messageSkip);
+            const duration = Date.now() - startTime;
+            console.log(`✅ Fetched ${messages.length} messages in ${duration}ms`);
+            return messages;
+        }
+        catch (error) {
+            console.error('❌ Error fetching messages:', error);
+            throw error;
+        }
     }
     async getUserNotifications(req) {
         const userId = req.user._id;
@@ -106,6 +120,7 @@ let ChatsController = class ChatsController {
 exports.ChatsController = ChatsController;
 __decorate([
     (0, common_1.Get)('my-chats'),
+    (0, throttler_decorators_1.LenientThrottle)(),
     __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -113,6 +128,7 @@ __decorate([
 ], ChatsController.prototype, "getMyChats", null);
 __decorate([
     (0, common_1.Get)('user/:userId'),
+    (0, throttler_decorators_1.LenientThrottle)(),
     __param(0, (0, common_1.Param)('userId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -120,6 +136,7 @@ __decorate([
 ], ChatsController.prototype, "getUserChats", null);
 __decorate([
     (0, common_1.Post)('create'),
+    (0, throttler_decorators_1.StandardThrottle)(),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -144,6 +161,7 @@ __decorate([
 ], ChatsController.prototype, "joinRoom", null);
 __decorate([
     (0, common_1.Post)('message'),
+    (0, throttler_decorators_1.MessageThrottle)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -151,6 +169,7 @@ __decorate([
 ], ChatsController.prototype, "sendMessage", null);
 __decorate([
     (0, common_1.Post)('cleanup-duplicates'),
+    (0, throttler_decorators_1.StrictThrottle)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -164,9 +183,11 @@ __decorate([
 __decorate([
     (0, common_1.Get)('messages/:chatId'),
     __param(0, (0, common_1.Param)('chatId')),
+    __param(1, (0, common_1.Query)('limit')),
+    __param(2, (0, common_1.Query)('skip')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", Promise)
 ], ChatsController.prototype, "getMessages", null);
 __decorate([
     (0, common_1.Get)('notifications'),

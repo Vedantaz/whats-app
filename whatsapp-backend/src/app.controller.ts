@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { AppService } from './app.service';
+import { NoThrottle } from './throttler/throttler.decorators';
 
 @Controller()
 export class AppController {
