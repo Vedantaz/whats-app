@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from '../api/axios';
-import socket from '../socket/Socket.io';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "../api/axios";
+import socket from "../socket/Socket.io";
 
 interface User {
   _id: string;
@@ -30,50 +30,58 @@ interface Chat {
 export default function ChatWhatsApp() {
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // State management
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chats' | 'contacts'>('chats');
+  const [activeTab, setActiveTab] = useState<"chats" | "contacts">("chats");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAllUsers, setShowAllUsers] = useState(false);
+  const emojiRef = useRef<HTMLDivElement | null>(null);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showEmojiPicker) {
+      if (
+        emojiRef.current &&
+        !emojiRef.current.contains(event.target as Node)
+      ) {
         setShowEmojiPicker(false);
       }
     };
 
     if (showEmojiPicker) {
-      document.addEventListener('click', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showEmojiPicker]);
 
   // Browser notification function
   const showBrowserNotification = (title: string, body: string) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if ("Notification" in window && Notification.permission === "granted") {
       new Notification(title, {
         body,
-        icon: '/favicon.ico', // You can add your app icon here
-        tag: 'chat-notification'
+        icon: "/favicon.ico", // You can add your app icon here
+        tag: "chat-notification",
       });
-    } else if ('Notification' in window && Notification.permission !== 'denied') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
+    } else if (
+      "Notification" in window &&
+      Notification.permission !== "denied"
+    ) {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
           new Notification(title, {
             body,
-            icon: '/favicon.ico',
-            tag: 'chat-notification'
+            icon: "/favicon.ico",
+            tag: "chat-notification",
           });
         }
       });
@@ -82,22 +90,22 @@ export default function ChatWhatsApp() {
 
   // Request notification permission on component mount
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
   }, []);
 
   // Initialize user and socket connection
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token) {
-      navigate('/');
+      navigate("/");
       return;
     }
 
-    const user = localStorage.getItem('user');
+    const user = localStorage.getItem("user");
     if (!user) {
-      navigate('/');
+      navigate("/");
       return;
     }
 
@@ -108,24 +116,24 @@ export default function ChatWhatsApp() {
     const initializeSocket = () => {
       socket.auth = { token };
 
-      socket.on('connect', () => {
-        console.log('Socket connected successfully');
+      socket.on("connect", () => {
+        console.log("Socket connected successfully");
         if (userData?._id) {
-          socket.emit('setUserOnline', { userId: userData._id });
+          socket.emit("setUserOnline", { userId: userData._id });
         }
       });
 
-      socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error.message);
+      socket.on("connect_error", (error) => {
+        console.error("Socket connection error:", error.message);
       });
 
-      socket.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason);
+      socket.on("disconnect", (reason) => {
+        console.log("Socket disconnected:", reason);
       });
 
       if (!socket.connected) {
         socket.connect();
-        console.log('Attempting socket connection to port 3000...');
+        console.log("Attempting socket connection to port 3000...");
       }
     };
 
@@ -136,28 +144,42 @@ export default function ChatWhatsApp() {
     fetchUsers();
 
     return () => {
-      socket.off('connect');
-      socket.off('connect_error');
-      socket.off('disconnect');
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("disconnect");
     };
   }, [navigate]);
 
   // Socket event listeners
   useEffect(() => {
     const handleNewMessage = (message: Message) => {
-      const messageChatId = typeof message.chat === 'string' ? message.chat : (message.chat as any)?._id;
+      const messageChatId =
+        typeof message.chat === "string"
+          ? message.chat
+          : (message.chat as any)?._id;
 
       if (messageChatId === activeChat?._id) {
-        setMessages(prev => {
+        setMessages((prev) => {
           // Remove any temporary message with same content and replace with real message
-          const filteredMessages = prev.filter(msg =>
-            !(msg._id.startsWith('temp-') && msg.content === message.content && msg.sender === message.sender)
+          const filteredMessages = prev.filter(
+            (msg) =>
+              !(
+                msg._id.startsWith("temp-") &&
+                msg.content === message.content &&
+                msg.sender === message.sender
+              )
           );
 
           // Check if real message already exists
-          const exists = filteredMessages.some(msg => msg._id === message._id);
+          const exists = filteredMessages.some(
+            (msg) => msg._id === message._id
+          );
           if (!exists) {
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            setTimeout(
+              () =>
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+              100
+            );
             return [...filteredMessages, message];
           }
           return filteredMessages;
@@ -168,13 +190,15 @@ export default function ChatWhatsApp() {
 
     // Enhanced notification handlers
     const handleMessageNotification = (notificationData: any) => {
-      console.log('📱 Message notification received:', notificationData);
+      console.log("📱 Message notification received:", notificationData);
 
       // Show browser notification if user is not on the active chat
       if (notificationData.chatId !== activeChat?._id) {
         showBrowserNotification(
-          `New message from ${notificationData.senderInfo?.username || 'Unknown'}`,
-          notificationData.content || 'New message received'
+          `New message from ${
+            notificationData.senderInfo?.username || "Unknown"
+          }`,
+          notificationData.content || "New message received"
         );
       }
 
@@ -183,84 +207,112 @@ export default function ChatWhatsApp() {
     };
 
     const handleChatActivity = (activityData: any) => {
-      console.log('💬 Chat activity:', activityData);
+      console.log("💬 Chat activity:", activityData);
       // You can add visual indicators for chat activity here
     };
 
     const handleGlobalBroadcast = (broadcastData: any) => {
-      console.log('📢 Global broadcast:', broadcastData);
+      console.log("📢 Global broadcast:", broadcastData);
       // Handle global broadcasts (announcements, system messages, etc.)
-      showBrowserNotification('System Announcement', broadcastData.message);
+      showBrowserNotification("System Announcement", broadcastData.message);
     };
 
-    const handleUserStatusChange = (data: { userId: string, username?: string, status: 'online' | 'offline' }) => {
-      setUsers(prev => prev.map(user =>
-        user._id === data.userId ? { ...user, online: data.status === 'online' } : user
-      ));
-      
-      setChats(prev => prev.map(chat => ({
-        ...chat,
-        users: chat.users.map(user =>
-          user._id === data.userId ? { ...user, online: data.status === 'online' } : user
+    const handleUserStatusChange = (data: {
+      userId: string;
+      username?: string;
+      status: "online" | "offline";
+    }) => {
+      setUsers((prev) =>
+        prev.map((user) =>
+          user._id === data.userId
+            ? { ...user, online: data.status === "online" }
+            : user
         )
-      })));
+      );
 
-      if (activeChat) {
-        setActiveChat(prev => prev ? ({
-          ...prev,
-          users: prev.users.map(user =>
-            user._id === data.userId ? { ...user, online: data.status === 'online' } : user
-          )
-        }) : null);
-      }
-    };
-
-    const handleOnlineUsersUpdate = (data: { onlineUsers: Array<{userId: string, username?: string, email?: string}> }) => {
-      const onlineUserIds = data.onlineUsers.map(u => u.userId);
-      
-      setUsers(prev => prev.map(user => ({
-        ...user,
-        online: onlineUserIds.includes(user._id)
-      })));
-      
-      setChats(prev => prev.map(chat => ({
-        ...chat,
-        users: chat.users.map(user => ({
-          ...user,
-          online: onlineUserIds.includes(user._id)
+      setChats((prev) =>
+        prev.map((chat) => ({
+          ...chat,
+          users: chat.users.map((user) =>
+            user._id === data.userId
+              ? { ...user, online: data.status === "online" }
+              : user
+          ),
         }))
-      })));
+      );
 
       if (activeChat) {
-        setActiveChat(prev => prev ? ({
-          ...prev,
-          users: prev.users.map(user => ({
-            ...user,
-            online: onlineUserIds.includes(user._id)
-          }))
-        }) : null);
+        setActiveChat((prev) =>
+          prev
+            ? {
+                ...prev,
+                users: prev.users.map((user) =>
+                  user._id === data.userId
+                    ? { ...user, online: data.status === "online" }
+                    : user
+                ),
+              }
+            : null
+        );
       }
     };
 
-    socket.on('newMessage', handleNewMessage);
-    socket.on('userStatusChange', handleUserStatusChange);
-    socket.on('onlineUsersUpdate', handleOnlineUsersUpdate);
+    const handleOnlineUsersUpdate = (data: {
+      onlineUsers: Array<{ userId: string; username?: string; email?: string }>;
+    }) => {
+      const onlineUserIds = data.onlineUsers.map((u) => u.userId);
+
+      setUsers((prev) =>
+        prev.map((user) => ({
+          ...user,
+          online: onlineUserIds.includes(user._id),
+        }))
+      );
+
+      setChats((prev) =>
+        prev.map((chat) => ({
+          ...chat,
+          users: chat.users.map((user) => ({
+            ...user,
+            online: onlineUserIds.includes(user._id),
+          })),
+        }))
+      );
+
+      if (activeChat) {
+        setActiveChat((prev) =>
+          prev
+            ? {
+                ...prev,
+                users: prev.users.map((user) => ({
+                  ...user,
+                  online: onlineUserIds.includes(user._id),
+                })),
+              }
+            : null
+        );
+      }
+    };
+
+    socket.on("newMessage", handleNewMessage);
+    socket.on("userStatusChange", handleUserStatusChange);
+    socket.on("onlineUsersUpdate", handleOnlineUsersUpdate);
 
     // Register enhanced notification listeners
-    socket.on('messageNotification', handleMessageNotification);
-    socket.on('chatActivity', handleChatActivity);
-    socket.on('globalBroadcast', handleGlobalBroadcast);
+    socket.on("messageNotification", handleMessageNotification);
+    socket.on("chatActivity", handleChatActivity);
+    socket.on("globalBroadcast", handleGlobalBroadcast);
 
     // Request current online users when component mounts
-    socket.emit('getOnlineUsers');
+    socket.emit("getOnlineUsers");
 
     return () => {
-      socket.off('newMessage', handleNewMessage);
-      socket.off('userStatusChange', handleUserStatusChange);
-      socket.off('onlineUsersUpdate', handleOnlineUsersUpdate);
-      socket.off('messageNotification', handleMessageNotification);
-      socket.off('chatActivity', handleChatActivity);
-      socket.off('globalBroadcast', handleGlobalBroadcast);
+      socket.off("newMessage", handleNewMessage);
+      socket.off("userStatusChange", handleUserStatusChange);
+      socket.off("onlineUsersUpdate", handleOnlineUsersUpdate);
+      socket.off("messageNotification", handleMessageNotification);
+      socket.off("chatActivity", handleChatActivity);
+      socket.off("globalBroadcast", handleGlobalBroadcast);
     };
   }, [activeChat]);
 
@@ -268,40 +320,80 @@ export default function ChatWhatsApp() {
   useEffect(() => {
     return () => {
       socket.disconnect();
-      console.log('Socket disconnected');
+      console.log("Socket disconnected");
     };
   }, []);
+
+  useEffect(() => {
+    console.log("Emoji picker visibility: ", showEmojiPicker);
+  }, [showEmojiPicker]);
 
   // Fetch functions
   const fetchChats = async () => {
     try {
-      const response = await axios.get('/chats/my-chats');
+      const response = await axios.get("/chats/my-chats");
       setChats(response.data || []);
+
+      // Update users list after fetching chats to properly filter contacts
+      setTimeout(() => {
+        fetchUsers();
+      }, 100);
     } catch (error) {
-      console.error('Error fetching chats:', error);
+      console.error("Error fetching chats:", error);
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (showAll: boolean = false) => {
     try {
-      const response = await axios.get('/users');
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      setUsers(response.data.filter((user: User) => user._id !== currentUser._id));
+      const response = await axios.get("/users");
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      // Filter out current user
+      const allUsers = response.data.filter(
+        (user: User) => user._id !== currentUser._id
+      );
+
+      if (showAll) {
+        // Show all users except current user
+        setUsers(allUsers);
+        return;
+      }
+
+      // Get user IDs who already have chats
+      const usersWithChats = new Set();
+      chats.forEach((chat) => {
+        chat.users.forEach((user: any) => {
+          const userId = typeof user === "string" ? user : user._id;
+          if (userId !== currentUser._id) {
+            usersWithChats.add(userId);
+          }
+        });
+      });
+
+      // For contacts tab, show users without existing chats by default
+      const usersWithoutChats = allUsers.filter(
+        (user: User) => !usersWithChats.has(user._id)
+      );
+
+      setUsers(usersWithoutChats);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
     }
   };
 
   const fetchMessages = async (chatId: string) => {
     setLoading(true);
     try {
-      console.log('🔍 Fetching messages for chat:', chatId);
+      console.log("🔍 Fetching messages for chat:", chatId);
       const response = await axios.get(`/chats/messages/${chatId}`);
-      console.log('📨 Fetched messages:', response.data);
+      console.log("📨 Fetched messages:", response.data);
       setMessages(response.data || []);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      setTimeout(
+        () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+        100
+      );
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error("Error fetching messages:", error);
     } finally {
       setLoading(false);
     }
@@ -309,15 +401,15 @@ export default function ChatWhatsApp() {
 
   // Event handlers
   const handleSelectChat = (chat: Chat) => {
-    console.log('🎯 Selected chat:', chat._id);
+    console.log("🎯 Selected chat:", chat._id);
     setActiveChat(chat);
     fetchMessages(chat._id);
-    socket.emit('joinRoom', chat._id);
+    socket.emit("joinRoom", chat._id);
   };
 
   const handleCreateChat = async (userId: string) => {
     try {
-      console.log('Getting/creating chat with user:', userId);
+      console.log("Getting/creating chat with user:", userId);
 
       // First check if chat already exists in our current chats list
       const existingChat = chats.find((chat) => {
@@ -326,26 +418,26 @@ export default function ChatWhatsApp() {
       });
 
       if (existingChat) {
-        console.log('Found existing chat in local list:', existingChat._id);
+        console.log("Found existing chat in local list:", existingChat._id);
         setActiveChat(existingChat);
         fetchMessages(existingChat._id);
-        socket.emit('joinRoom', existingChat._id);
-        setActiveTab('chats');
+        socket.emit("joinRoom", existingChat._id);
+        setActiveTab("chats");
         return;
       }
 
-      const response = await axios.post('/chats/with-user', { userId });
+      const response = await axios.post("/chats/with-user", { userId });
       const { chat, messages } = response.data;
 
       setActiveChat(chat);
       setMessages(messages || []);
-      socket.emit('joinRoom', chat._id);
-      setActiveTab('chats');
+      socket.emit("joinRoom", chat._id);
+      setActiveTab("chats");
 
       // Refresh chats list to show the new chat
       fetchChats();
     } catch (error) {
-      console.error('Error creating chat:', error);
+      console.error("Error creating chat:", error);
     }
   };
 
@@ -358,7 +450,7 @@ export default function ChatWhatsApp() {
       content: newMessage.trim(),
     };
 
-    console.log('Sending message:', payload);
+    console.log("Sending message:", payload);
 
     // Create a temporary message object for immediate display
     const tempMessage: Message = {
@@ -370,15 +462,15 @@ export default function ChatWhatsApp() {
     };
 
     // Add message to local state immediately
-    setMessages(prev => [...prev, tempMessage]);
-    setNewMessage('');
+    setMessages((prev) => [...prev, tempMessage]);
+    setNewMessage("");
 
     // Emit to socket
-    socket.emit('sendMessage', payload);
+    socket.emit("sendMessage", payload);
 
     // Auto-scroll to bottom after sending
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
 
     // Refresh chats to update last message
@@ -388,15 +480,17 @@ export default function ChatWhatsApp() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     socket.disconnect();
-    navigate('/');
+    navigate("/");
   };
 
   const getOtherUser = (chat: Chat): User | undefined => {
     if (!currentUser) return undefined;
-    return chat.users.find((user) => user._id !== currentUser._id) || chat.users[0];
+    return (
+      chat.users.find((user) => user._id !== currentUser._id) || chat.users[0]
+    );
   };
 
   if (!currentUser) return null;
@@ -405,40 +499,59 @@ export default function ChatWhatsApp() {
     <div className="h-screen bg-gray-100 flex items-center justify-center">
       {/* WhatsApp Web Layout */}
       <div className="w-full max-w-6xl h-full bg-white shadow-2xl flex">
-
         {/* Left Panel - Chat List */}
         <div className="w-[30%] min-w-[320px] max-w-[400px] border-r border-gray-200 flex flex-col bg-white">
-          
           {/* Header */}
           <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center justify-between h-10">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-medium text-gray-700">
-                    {currentUser.username?.charAt(0).toUpperCase() || 'U'}
+                    {currentUser.username?.charAt(0).toUpperCase() || "U"}
                   </span>
                 </div>
-                <span className="font-medium text-gray-800 truncate">{currentUser.username}</span>
+                <span className="font-medium text-gray-800 truncate">
+                  {currentUser.username}
+                </span>
               </div>
 
               <div className="flex items-center space-x-1 flex-shrink-0">
                 <button
-                  onClick={() => setActiveTab('contacts')}
+                  onClick={() => setActiveTab("contacts")}
                   className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
                   title="New Chat"
                 >
-                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  <svg
+                    width="20"
+                    height="20"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                   </svg>
                 </button>
 
                 <button
-                  onClick={() => { fetchChats(); fetchUsers(); }}
+                  onClick={() => {
+                    fetchChats();
+                    setTimeout(() => fetchUsers(showAllUsers), 200);
+                  }}
                   className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
                   title="Refresh"
                 >
-                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  <svg
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
                   </svg>
                 </button>
 
@@ -447,8 +560,19 @@ export default function ChatWhatsApp() {
                   className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
                   title="Logout"
                 >
-                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  <svg
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
                   </svg>
                 </button>
               </div>
@@ -461,7 +585,7 @@ export default function ChatWhatsApp() {
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                 <svg
                   className="text-gray-400"
-                  style={{ width: '18px', height: '18px' }}
+                  style={{ width: "18px", height: "18px" }}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -485,21 +609,21 @@ export default function ChatWhatsApp() {
           {/* Tab Navigation */}
           <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
             <button
-              onClick={() => setActiveTab('chats')}
+              onClick={() => setActiveTab("chats")}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'chats'
-                  ? 'text-green-600 border-b-2 border-green-600 bg-white'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                activeTab === "chats"
+                  ? "text-green-600 border-b-2 border-green-600 bg-white"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
               }`}
             >
               Chats
             </button>
             <button
-              onClick={() => setActiveTab('contacts')}
+              onClick={() => setActiveTab("contacts")}
               className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'contacts'
-                  ? 'text-green-600 border-b-2 border-green-600 bg-white'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                activeTab === "contacts"
+                  ? "text-green-600 border-b-2 border-green-600 bg-white"
+                  : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
               }`}
             >
               Contacts
@@ -508,18 +632,26 @@ export default function ChatWhatsApp() {
 
           {/* Chat/Contact List */}
           <div className="flex-1 overflow-y-auto">
-            {activeTab === 'chats' ? (
+            {activeTab === "chats" ? (
               // Chat List
               <div>
                 {chats.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className="text-gray-400">
-                        <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                      <svg
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                        className="text-gray-400"
+                      >
+                        <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                     </div>
                     <p className="text-gray-600 font-medium">No chats yet</p>
-                    <p className="text-gray-400 text-sm mt-1">Start a conversation by selecting a contact</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Start a conversation by selecting a contact
+                    </p>
                   </div>
                 ) : (
                   chats.map((chat) => {
@@ -531,7 +663,7 @@ export default function ChatWhatsApp() {
                         key={chat._id}
                         onClick={() => handleSelectChat(chat)}
                         className={`px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                          activeChat?._id === chat._id ? 'bg-gray-100' : ''
+                          activeChat?._id === chat._id ? "bg-gray-100" : ""
                         }`}
                       >
                         <div className="flex items-center space-x-3">
@@ -539,7 +671,8 @@ export default function ChatWhatsApp() {
                           <div className="relative">
                             <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                               <span className="text-sm font-medium text-gray-700">
-                                {otherUser?.username?.charAt(0).toUpperCase() || 'U'}
+                                {otherUser?.username?.charAt(0).toUpperCase() ||
+                                  "U"}
                               </span>
                             </div>
                             {otherUser?.online && (
@@ -551,19 +684,23 @@ export default function ChatWhatsApp() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h3 className="font-medium text-gray-900 truncate">
-                                {otherUser?.username || 'Unknown User'}
+                                {otherUser?.username || "Unknown User"}
                               </h3>
                               {lastMessage && (
                                 <span className="text-xs text-gray-500">
-                                  {new Date(lastMessage.createdAt).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
+                                  {new Date(
+                                    lastMessage.createdAt
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
                                   })}
                                 </span>
                               )}
                             </div>
                             <p className="text-sm text-gray-600 truncate mt-1">
-                              {lastMessage ? lastMessage.content : 'Start a conversation...'}
+                              {lastMessage
+                                ? lastMessage.content
+                                : "Start a conversation..."}
                             </p>
                           </div>
                         </div>
@@ -575,32 +712,82 @@ export default function ChatWhatsApp() {
             ) : (
               // Contacts List
               <div>
-                {users.map((user) => (
-                  <div
-                    key={user._id}
-                    onClick={() => handleCreateChat(user._id)}
-                    className="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-700">
-                            {user.username?.charAt(0).toUpperCase() || 'U'}
-                          </span>
+                {/* Contacts Header with Toggle */}
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      {showAllUsers ? "All Users" : "New Contacts"}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setShowAllUsers(!showAllUsers);
+                        fetchUsers(!showAllUsers);
+                      }}
+                      className="text-xs text-green-600 hover:text-green-700 font-medium"
+                    >
+                      {showAllUsers ? "Show New Only" : "Show All Users"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {showAllUsers
+                      ? "All users in the system"
+                      : "Users you haven't chatted with yet"}
+                  </p>
+                </div>
+
+                {/* Users List */}
+                {users.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                        className="text-gray-400"
+                      >
+                        <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-600 font-medium">
+                      {showAllUsers ? "No users found" : "No new contacts"}
+                    </p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      {showAllUsers
+                        ? "There are no other users in the system"
+                        : "You've already started conversations with everyone"}
+                    </p>
+                  </div>
+                ) : (
+                  users.map((user) => (
+                    <div
+                      key={user._id}
+                      onClick={() => handleCreateChat(user._id)}
+                      className="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-gray-700">
+                              {user.username?.charAt(0).toUpperCase() || "U"}
+                            </span>
+                          </div>
+                          {user.online && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                          )}
                         </div>
-                        {user.online && (
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{user.username || 'Unknown'}</h3>
-                        <p className="text-sm text-gray-500">
-                          {user.online ? 'Online' : 'Offline'}
-                        </p>
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">
+                            {user.username || "Unknown"}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {user.online ? "Online" : "Offline"}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -616,28 +803,54 @@ export default function ChatWhatsApp() {
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-medium text-gray-700">
-                        {getOtherUser(activeChat)?.username?.charAt(0).toUpperCase() || 'U'}
+                        {getOtherUser(activeChat)
+                          ?.username?.charAt(0)
+                          .toUpperCase() || "U"}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <h2 className="font-medium text-gray-900 truncate">
-                        {getOtherUser(activeChat)?.username || 'Unknown'}
+                        {getOtherUser(activeChat)?.username || "Unknown"}
                       </h2>
                       <p className="text-sm text-gray-500 truncate">
-                        {getOtherUser(activeChat)?.online ? 'Online' : 'Last seen recently'}
+                        {getOtherUser(activeChat)?.online
+                          ? "Online"
+                          : "Last seen recently"}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-1 flex-shrink-0">
                     <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                      <svg
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
                       </svg>
                     </button>
                     <button className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/>
+                      <svg
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -649,7 +862,7 @@ export default function ChatWhatsApp() {
                 className="flex-1 overflow-y-auto p-4"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e5ddd5' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                  backgroundColor: '#e5ddd5'
+                  backgroundColor: "#e5ddd5",
                 }}
               >
                 {loading ? (
@@ -657,7 +870,9 @@ export default function ChatWhatsApp() {
                     <div className="bg-white px-4 py-2 rounded-lg shadow">
                       <div className="flex items-center space-x-2">
                         <div className="animate-spin w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full"></div>
-                        <span className="text-gray-600 text-sm">Loading messages...</span>
+                        <span className="text-gray-600 text-sm">
+                          Loading messages...
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -665,24 +880,42 @@ export default function ChatWhatsApp() {
                   <div className="flex justify-center items-center h-full">
                     <div className="text-center bg-white p-6 rounded-lg shadow-sm">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24" className="text-gray-400">
-                          <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        <svg
+                          width="24"
+                          height="24"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          className="text-gray-400"
+                        >
+                          <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                       </div>
-                      <p className="text-gray-600 font-medium">No messages yet</p>
-                      <p className="text-gray-400 text-sm mt-1">Start the conversation!</p>
+                      <p className="text-gray-600 font-medium">
+                        No messages yet
+                      </p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Start the conversation!
+                      </p>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {messages.map((message, index) => {
-                      const senderId = typeof message.sender === 'string' ? message.sender : message.sender?._id;
+                      const senderId =
+                        typeof message.sender === "string"
+                          ? message.sender
+                          : message.sender?._id;
                       const isSender = senderId === currentUser._id;
 
                       // Check for date separator
-                      const messageDate = new Date(message.createdAt).toDateString();
-                      const prevMessage = index > 0 ? messages[index - 1] : null;
-                      const prevMessageDate = prevMessage ? new Date(prevMessage.createdAt).toDateString() : null;
+                      const messageDate = new Date(
+                        message.createdAt
+                      ).toDateString();
+                      const prevMessage =
+                        index > 0 ? messages[index - 1] : null;
+                      const prevMessageDate = prevMessage
+                        ? new Date(prevMessage.createdAt).toDateString()
+                        : null;
                       const showDateSeparator = messageDate !== prevMessageDate;
 
                       return (
@@ -691,38 +924,56 @@ export default function ChatWhatsApp() {
                           {showDateSeparator && (
                             <div className="flex justify-center my-4">
                               <span className="bg-white px-3 py-1 rounded-full text-xs text-gray-500 shadow-sm">
-                                {new Date(message.createdAt).toLocaleDateString([], {
-                                  weekday: 'long',
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                })}
+                                {new Date(message.createdAt).toLocaleDateString(
+                                  [],
+                                  {
+                                    weekday: "long",
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  }
+                                )}
                               </span>
                             </div>
                           )}
 
                           {/* Message Bubble */}
-                          <div className={`flex ${isSender ? 'justify-end' : 'justify-start'} mb-1`}>
+                          <div
+                            className={`flex ${
+                              isSender ? "justify-end" : "justify-start"
+                            } mb-1`}
+                          >
                             <div
                               className={`relative max-w-xs lg:max-w-md px-3 py-2 rounded-lg shadow-sm ${
                                 isSender
-                                  ? 'bg-green-500 text-white rounded-br-none'
-                                  : 'bg-white text-gray-900 rounded-bl-none'
+                                  ? "bg-green-500 text-white rounded-br-none"
+                                  : "bg-white text-gray-900 rounded-bl-none"
                               }`}
                             >
-                              <p className="text-sm leading-relaxed break-words">{message.content}</p>
-                              <div className={`flex items-center justify-end mt-1 space-x-1 ${
-                                isSender ? 'text-green-100' : 'text-gray-400'
-                              }`}>
+                              <p className="text-sm leading-relaxed break-words">
+                                {message.content}
+                              </p>
+                              <div
+                                className={`flex items-center justify-end mt-1 space-x-1 ${
+                                  isSender ? "text-green-100" : "text-gray-400"
+                                }`}
+                              >
                                 <span className="text-xs">
-                                  {new Date(message.createdAt).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
+                                  {new Date(
+                                    message.createdAt
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
                                   })}
                                 </span>
                                 {isSender && (
-                                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                                   </svg>
                                 )}
                               </div>
@@ -738,74 +989,91 @@ export default function ChatWhatsApp() {
 
               {/* Message Input */}
               <div className="bg-gray-100 px-4 py-3 border-t border-gray-200 flex-shrink-0">
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0 relative"
-                  >
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                      <line x1="9" y1="9" x2="9.01" y2="9"/>
-                      <line x1="15" y1="9" x2="15.01" y2="9"/>
-                    </svg>
-                  </button>
+                {/* Wrapper for emoji and input */}
+                <div className="flex flex-col space-y-2">
+                  {/* Emoji picker (shown conditionally) */}
 
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      placeholder="Type a message"
-                      className="w-full px-4 py-3 pr-12 bg-white rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          sendMessage();
-                        }
-                      }}
-                    />
-                    <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
-                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                  {showEmojiPicker && (
+                    <div className="bg-white border border-gray-200 rounded-lg shadow p-3 text-sm">
+                      😀 😃 😄 😁 😂 🤣 😍 🙈 🐵 👀 ❤️
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-3">
+                    {/* Emoji toggle button */}
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                      </svg>
+                    </button>
+
+                    {/* Text input */}
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder="Type a message"
+                        className="w-full px-4 py-3 pr-12 bg-white rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                          }
+                        }}
+                      />
+                      <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-600 hover:bg-gray-200 rounded-full transition-colors">
+                        <svg
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          strokeWidth="2"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Send button */}
+                    <button
+                      onClick={sendMessage}
+                      disabled={!newMessage.trim()}
+                      className={`p-3 rounded-full transition-all flex-shrink-0 ${
+                        newMessage.trim()
+                          ? "bg-green-500 hover:bg-green-600 text-white"
+                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      }`}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                       </svg>
                     </button>
                   </div>
-
-                  <button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim()}
-                    className={`p-3 rounded-full transition-all flex-shrink-0 ${
-                      newMessage.trim()
-                        ? 'bg-green-500 hover:bg-green-600 text-white'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                  </button>
                 </div>
-
-                {/* Emoji Picker */}
-                {showEmojiPicker && (
-                  <div className="absolute bottom-16 left-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
-                    <div className="grid grid-cols-8 gap-2 w-64">
-                      {['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'].map((emoji, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            setNewMessage(prev => prev + emoji);
-                            setShowEmojiPicker(false);
-                          }}
-                          className="text-xl hover:bg-gray-100 rounded p-1 transition-colors"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </>
           ) : (
@@ -813,13 +1081,25 @@ export default function ChatWhatsApp() {
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center">
                 <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <svg width="48" height="48" fill="currentColor" viewBox="0 0 24 24" className="text-gray-400">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-10.45 8.516-18.944 18.986-18.944 5.151.002 9.999 2.01 13.625 5.652 3.626 3.641 5.621 8.495 5.619 13.65-.003 10.45-8.516 18.944-18.986 18.944h-.008c-1.896 0-3.747-.29-5.438-.839L.057 24z"/>
+                  <svg
+                    width="48"
+                    height="48"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    className="text-gray-400"
+                  >
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-10.45 8.516-18.944 18.986-18.944 5.151.002 9.999 2.01 13.625 5.652 3.626 3.641 5.621 8.495 5.619 13.65-.003 10.45-8.516 18.944-18.986 18.944h-.008c-1.896 0-3.747-.29-5.438-.839L.057 24z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-light text-gray-800 mb-2">WhatsApp Web</h2>
-                <p className="text-gray-600 mb-4">Send and receive messages without keeping your phone online.</p>
-                <p className="text-gray-500 text-sm">Select a chat to start messaging</p>
+                <h2 className="text-2xl font-light text-gray-800 mb-2">
+                  WhatsApp Web
+                </h2>
+                <p className="text-gray-600 mb-4">
+                  Send and receive messages without keeping your phone online.
+                </p>
+                <p className="text-gray-500 text-sm">
+                  Select a chat to start messaging
+                </p>
               </div>
             </div>
           )}
