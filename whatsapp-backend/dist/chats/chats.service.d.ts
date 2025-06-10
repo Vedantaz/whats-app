@@ -84,4 +84,23 @@ export declare class ChatsService {
             updatedAt: any;
         }[];
     }>;
+    getAllUsers(): Promise<{
+        online: boolean;
+        username: string;
+        email: string;
+        password: string;
+        profilePic?: string;
+        _id: unknown;
+        $locals: Record<string, unknown>;
+        $op: "save" | "validate" | "remove" | null;
+        $where: Record<string, unknown>;
+        baseModelName?: string;
+        collection: import("mongoose").Collection;
+        db: import("mongoose").Connection;
+        errors?: import("mongoose").Error.ValidationError;
+        id?: any;
+        isNew: boolean;
+        schema: import("mongoose").Schema;
+        __v: number;
+    }[]>;
 }

@@ -409,6 +409,10 @@ let ChatsService = ChatsService_1 = class ChatsService {
             throw error;
         }
     }
+    async getAllUsers() {
+        const allUsers = await this.usersService.findAllUsers();
+        return allUsers;
+    }
 };
 exports.ChatsService = ChatsService;
 exports.ChatsService = ChatsService = ChatsService_1 = __decorate([

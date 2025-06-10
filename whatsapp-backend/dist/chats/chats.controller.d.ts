@@ -87,4 +87,26 @@ export declare class ChatsController {
         status: string;
         message: string;
     }>;
+    getAllUsers(): Promise<{
+        message: string;
+        data: Promise<{
+            totalChats: number;
+            chats: {
+                chatId: unknown;
+                users: {
+                    id: any;
+                    username: any;
+                    email: any;
+                }[];
+                messageCount: number;
+                lastMessage: {
+                    content: string;
+                    sender: any;
+                    createdAt: any;
+                } | null;
+                createdAt: any;
+                updatedAt: any;
+            }[];
+        }>;
+    }>;
 }

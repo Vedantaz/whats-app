@@ -25,6 +25,7 @@ import {
 export class ChatsController {
   constructor(private readonly chatsService: ChatsService) {}
 
+
   // Get all chats for the authenticated user
   @Get('my-chats')
   @LenientThrottle() // 20 requests per 60 seconds for reading chats
@@ -33,6 +34,8 @@ export class ChatsController {
     const userId = req.user._id;
     return this.chatsService.getUserChats(userId);
   }
+
+
 
   // Get all chats for a specific user (keep for backward compatibility)
   @Get('user/:userId')
@@ -205,5 +208,11 @@ export class ChatsController {
   async markNotificationAsDelivered(@Param('id') notificationId: string) {
     await this.chatsService.markNotificationAsDelivered(notificationId);
     return { status: 'success', message: 'Notification marked as delivered' };
+  }
+
+  @Get('all-users')
+  async getAllUsers(){
+    const users = this.chatsService.getAllChatsDebug();
+    return {message: 'Notification marked as delivered', data:users}
   }
 }

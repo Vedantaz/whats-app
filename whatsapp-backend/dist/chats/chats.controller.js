@@ -116,6 +116,10 @@ let ChatsController = class ChatsController {
         await this.chatsService.markNotificationAsDelivered(notificationId);
         return { status: 'success', message: 'Notification marked as delivered' };
     }
+    async getAllUsers() {
+        const users = this.chatsService.getAllChatsDebug();
+        return { message: 'Notification marked as delivered', data: users };
+    }
 };
 exports.ChatsController = ChatsController;
 __decorate([
@@ -217,6 +221,12 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ChatsController.prototype, "markNotificationAsDelivered", null);
+__decorate([
+    (0, common_1.Get)('all-users'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ChatsController.prototype, "getAllUsers", null);
 exports.ChatsController = ChatsController = __decorate([
     (0, common_1.Controller)('chats'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

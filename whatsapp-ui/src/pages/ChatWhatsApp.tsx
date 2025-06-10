@@ -64,6 +64,12 @@ export default function ChatWhatsApp() {
     };
   }, [showEmojiPicker]);
 
+  useEffect(() => {
+    if (activeTab === "contacts") {
+      fetchUsers(true); // Fetch all users except current
+    }
+  }, [activeTab]);
+
   // Browser notification function
   const showBrowserNotification = (title: string, body: string) => {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -95,226 +101,226 @@ export default function ChatWhatsApp() {
     }
   }, []);
 
-  // Initialize user and socket connection
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/");
-      return;
-    }
-
-    const user = localStorage.getItem("user");
-    if (!user) {
-      navigate("/");
-      return;
-    }
-
-    const userData = JSON.parse(user);
-    setCurrentUser(userData);
-
-    // Initialize socket connection
-    const initializeSocket = () => {
-      socket.auth = { token };
-
-      socket.on("connect", () => {
-        console.log("Socket connected successfully");
-        if (userData?._id) {
-          socket.emit("setUserOnline", { userId: userData._id });
-        }
-      });
-
-      socket.on("connect_error", (error) => {
-        console.error("Socket connection error:", error.message);
-      });
-
-      socket.on("disconnect", (reason) => {
-        console.log("Socket disconnected:", reason);
-      });
-
-      if (!socket.connected) {
-        socket.connect();
-        console.log("Attempting socket connection to port 3000...");
+    // Initialize user and socket connection
+    useEffect(() => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/");
+        return;
       }
-    };
 
-    initializeSocket();
+      const user = localStorage.getItem("user");
+      if (!user) {
+        navigate("/");
+        return;
+      }
 
-    // Fetch initial data
-    fetchChats();
-    fetchUsers();
+      const userData = JSON.parse(user);
+      setCurrentUser(userData);
 
-    return () => {
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("disconnect");
-    };
-  }, [navigate]);
+      // Initialize socket connection
+      const initializeSocket = () => {
+        socket.auth = { token };
 
-  // Socket event listeners
-  useEffect(() => {
-    const handleNewMessage = (message: Message) => {
-      const messageChatId =
-        typeof message.chat === "string"
-          ? message.chat
-          : (message.chat as any)?._id;
-
-      if (messageChatId === activeChat?._id) {
-        setMessages((prev) => {
-          // Remove any temporary message with same content and replace with real message
-          const filteredMessages = prev.filter(
-            (msg) =>
-              !(
-                msg._id.startsWith("temp-") &&
-                msg.content === message.content &&
-                msg.sender === message.sender
-              )
-          );
-
-          // Check if real message already exists
-          const exists = filteredMessages.some(
-            (msg) => msg._id === message._id
-          );
-          if (!exists) {
-            setTimeout(
-              () =>
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
-              100
-            );
-            return [...filteredMessages, message];
+        socket.on("connect", () => {
+          console.log("Socket connected successfully");
+          if (userData?._id) {
+            socket.emit("setUserOnline", { userId: userData._id });
           }
-          return filteredMessages;
         });
-      }
+
+        socket.on("connect_error", (error) => {
+          console.error("Socket connection error:", error.message);
+        });
+
+        socket.on("disconnect", (reason) => {
+          console.log("Socket disconnected:", reason);
+        });
+
+        if (!socket.connected) {
+          socket.connect();
+          console.log("Attempting socket connection to port 3000...");
+        }
+      };
+
+      initializeSocket();
+
+      // Fetch initial data
       fetchChats();
-    };
+      fetchUsers();
 
-    // Enhanced notification handlers
-    const handleMessageNotification = (notificationData: any) => {
-      console.log("📱 Message notification received:", notificationData);
+      return () => {
+        socket.off("connect");
+        socket.off("connect_error");
+        socket.off("disconnect");
+      };
+    }, [navigate]);
 
-      // Show browser notification if user is not on the active chat
-      if (notificationData.chatId !== activeChat?._id) {
-        showBrowserNotification(
-          `New message from ${
-            notificationData.senderInfo?.username || "Unknown"
-          }`,
-          notificationData.content || "New message received"
-        );
-      }
+    // Socket event listeners
+    useEffect(() => {
+      const handleNewMessage = (message: Message) => {
+        const messageChatId =
+          typeof message.chat === "string"
+            ? message.chat
+            : (message.chat as any)?._id;
 
-      // Update chat list to show new message
-      fetchChats();
-    };
+        if (messageChatId === activeChat?._id) {
+          setMessages((prev) => {
+            // Remove any temporary message with same content and replace with real message
+            const filteredMessages = prev.filter(
+              (msg) =>
+                !(
+                  msg._id.startsWith("temp-") &&
+                  msg.content === message.content &&
+                  msg.sender === message.sender
+                )
+            );
 
-    const handleChatActivity = (activityData: any) => {
-      console.log("💬 Chat activity:", activityData);
-      // You can add visual indicators for chat activity here
-    };
+            // Check if real message already exists
+            const exists = filteredMessages.some(
+              (msg) => msg._id === message._id
+            );
+            if (!exists) {
+              setTimeout(
+                () =>
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
+                100
+              );
+              return [...filteredMessages, message];
+            }
+            return filteredMessages;
+          });
+        }
+        fetchChats();
+      };
 
-    const handleGlobalBroadcast = (broadcastData: any) => {
-      console.log("📢 Global broadcast:", broadcastData);
-      // Handle global broadcasts (announcements, system messages, etc.)
-      showBrowserNotification("System Announcement", broadcastData.message);
-    };
+      // Enhanced notification handlers
+      const handleMessageNotification = (notificationData: any) => {
+        console.log("📱 Message notification received:", notificationData);
 
-    const handleUserStatusChange = (data: {
-      userId: string;
-      username?: string;
-      status: "online" | "offline";
-    }) => {
-      setUsers((prev) =>
-        prev.map((user) =>
-          user._id === data.userId
-            ? { ...user, online: data.status === "online" }
-            : user
-        )
-      );
+        // Show browser notification if user is not on the active chat
+        if (notificationData.chatId !== activeChat?._id) {
+          showBrowserNotification(
+            `New message from ${
+              notificationData.senderInfo?.username || "Unknown"
+            }`,
+            notificationData.content || "New message received"
+          );
+        }
 
-      setChats((prev) =>
-        prev.map((chat) => ({
-          ...chat,
-          users: chat.users.map((user) =>
+        // Update chat list to show new message
+        fetchChats();
+      };
+
+      const handleChatActivity = (activityData: any) => {
+        console.log("💬 Chat activity:", activityData);
+        // You can add visual indicators for chat activity here
+      };
+
+      const handleGlobalBroadcast = (broadcastData: any) => {
+        console.log("📢 Global broadcast:", broadcastData);
+        // Handle global broadcasts (announcements, system messages, etc.)
+        showBrowserNotification("System Announcement", broadcastData.message);
+      };
+
+      const handleUserStatusChange = (data: {
+        userId: string;
+        username?: string;
+        status: "online" | "offline";
+      }) => {
+        setUsers((prev) =>
+          prev.map((user) =>
             user._id === data.userId
               ? { ...user, online: data.status === "online" }
               : user
-          ),
-        }))
-      );
-
-      if (activeChat) {
-        setActiveChat((prev) =>
-          prev
-            ? {
-                ...prev,
-                users: prev.users.map((user) =>
-                  user._id === data.userId
-                    ? { ...user, online: data.status === "online" }
-                    : user
-                ),
-              }
-            : null
+          )
         );
-      }
-    };
 
-    const handleOnlineUsersUpdate = (data: {
-      onlineUsers: Array<{ userId: string; username?: string; email?: string }>;
-    }) => {
-      const onlineUserIds = data.onlineUsers.map((u) => u.userId);
+        setChats((prev) =>
+          prev.map((chat) => ({
+            ...chat,
+            users: chat.users.map((user) =>
+              user._id === data.userId
+                ? { ...user, online: data.status === "online" }
+                : user
+            ),
+          }))
+        );
 
-      setUsers((prev) =>
-        prev.map((user) => ({
-          ...user,
-          online: onlineUserIds.includes(user._id),
-        }))
-      );
+        if (activeChat) {
+          setActiveChat((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  users: prev.users.map((user) =>
+                    user._id === data.userId
+                      ? { ...user, online: data.status === "online" }
+                      : user
+                  ),
+                }
+              : null
+          );
+        }
+      };
 
-      setChats((prev) =>
-        prev.map((chat) => ({
-          ...chat,
-          users: chat.users.map((user) => ({
+      const handleOnlineUsersUpdate = (data: {
+        onlineUsers: Array<{ userId: string; username?: string; email?: string }>;
+      }) => {
+        const onlineUserIds = data.onlineUsers.map((u) => u.userId);
+
+        setUsers((prev) =>
+          prev.map((user) => ({
             ...user,
             online: onlineUserIds.includes(user._id),
-          })),
-        }))
-      );
-
-      if (activeChat) {
-        setActiveChat((prev) =>
-          prev
-            ? {
-                ...prev,
-                users: prev.users.map((user) => ({
-                  ...user,
-                  online: onlineUserIds.includes(user._id),
-                })),
-              }
-            : null
+          }))
         );
-      }
-    };
 
-    socket.on("newMessage", handleNewMessage);
-    socket.on("userStatusChange", handleUserStatusChange);
-    socket.on("onlineUsersUpdate", handleOnlineUsersUpdate);
+        setChats((prev) =>
+          prev.map((chat) => ({
+            ...chat,
+            users: chat.users.map((user) => ({
+              ...user,
+              online: onlineUserIds.includes(user._id),
+            })),
+          }))
+        );
 
-    // Register enhanced notification listeners
-    socket.on("messageNotification", handleMessageNotification);
-    socket.on("chatActivity", handleChatActivity);
-    socket.on("globalBroadcast", handleGlobalBroadcast);
+        if (activeChat) {
+          setActiveChat((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  users: prev.users.map((user) => ({
+                    ...user,
+                    online: onlineUserIds.includes(user._id),
+                  })),
+                }
+              : null
+          );
+        }
+      };
 
-    // Request current online users when component mounts
-    socket.emit("getOnlineUsers");
+      socket.on("newMessage", handleNewMessage);
+      socket.on("userStatusChange", handleUserStatusChange);
+      socket.on("onlineUsersUpdate", handleOnlineUsersUpdate);
 
-    return () => {
-      socket.off("newMessage", handleNewMessage);
-      socket.off("userStatusChange", handleUserStatusChange);
-      socket.off("onlineUsersUpdate", handleOnlineUsersUpdate);
-      socket.off("messageNotification", handleMessageNotification);
-      socket.off("chatActivity", handleChatActivity);
-      socket.off("globalBroadcast", handleGlobalBroadcast);
-    };
-  }, [activeChat]);
+      // Register enhanced notification listeners
+      socket.on("messageNotification", handleMessageNotification);
+      socket.on("chatActivity", handleChatActivity);
+      socket.on("globalBroadcast", handleGlobalBroadcast);
+
+      // Request current online users when component mounts
+      socket.emit("getOnlineUsers");
+
+      return () => {
+        socket.off("newMessage", handleNewMessage);
+        socket.off("userStatusChange", handleUserStatusChange);
+        socket.off("onlineUsersUpdate", handleOnlineUsersUpdate);
+        socket.off("messageNotification", handleMessageNotification);
+        socket.off("chatActivity", handleChatActivity);
+        socket.off("globalBroadcast", handleGlobalBroadcast);
+      };
+    }, [activeChat]);
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -353,29 +359,8 @@ export default function ChatWhatsApp() {
         (user: User) => user._id !== currentUser._id
       );
 
-      if (showAll) {
-        // Show all users except current user
-        setUsers(allUsers);
-        return;
-      }
-
-      // Get user IDs who already have chats
-      const usersWithChats = new Set();
-      chats.forEach((chat) => {
-        chat.users.forEach((user: any) => {
-          const userId = typeof user === "string" ? user : user._id;
-          if (userId !== currentUser._id) {
-            usersWithChats.add(userId);
-          }
-        });
-      });
-
-      // For contacts tab, show users without existing chats by default
-      const usersWithoutChats = allUsers.filter(
-        (user: User) => !usersWithChats.has(user._id)
-      );
-
-      setUsers(usersWithoutChats);
+      // Always show all users except current user
+      setUsers(allUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -721,7 +706,7 @@ export default function ChatWhatsApp() {
                     <button
                       onClick={() => {
                         setShowAllUsers(!showAllUsers);
-                        fetchUsers(!showAllUsers);
+                        fetchUsers(showAllUsers);
                       }}
                       className="text-xs text-green-600 hover:text-green-700 font-medium"
                     >
