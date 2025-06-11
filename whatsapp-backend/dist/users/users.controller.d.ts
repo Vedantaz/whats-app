@@ -23,24 +23,13 @@ export declare class UsersController {
         __v: number;
     }[]>;
     getAllUsers(): Promise<{
-        online: boolean;
-        username: string;
-        email: string;
-        password: string;
-        profilePic?: string;
-        _id: unknown;
-        $locals: Record<string, unknown>;
-        $op: "save" | "validate" | "remove" | null;
-        $where: Record<string, unknown>;
-        baseModelName?: string;
-        collection: import("mongoose").Collection;
-        db: import("mongoose").Connection;
-        errors?: import("mongoose").Error.ValidationError;
-        id?: any;
-        isNew: boolean;
-        schema: import("mongoose").Schema;
-        __v: number;
-    }[]>;
+        message: string;
+        data: (import("mongoose").Document<unknown, {}, import("./schema/user.schema").UserDocument, {}> & import("./schema/user.schema").User & import("mongoose").Document<unknown, any, any, Record<string, any>> & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[];
+    }>;
     getUser(email: string): Promise<import("./schema/user.schema").User | null>;
     getProfile(req: Request): Promise<Express.User | undefined>;
     getOnlineUsers(): Promise<{

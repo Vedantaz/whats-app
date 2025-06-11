@@ -18,7 +18,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       {
         name: 'short',
         ttl: 60000, // 60 seconds in milliseconds
-        limit: 10, // 10 requests per 60 seconds
+        limit: 20, // 10 requests per 60 seconds
       },
       {
         name: 'medium',

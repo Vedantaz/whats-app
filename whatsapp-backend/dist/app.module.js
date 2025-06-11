@@ -30,7 +30,7 @@ exports.AppModule = AppModule = __decorate([
                 {
                     name: 'short',
                     ttl: 60000,
-                    limit: 10,
+                    limit: 20,
                 },
                 {
                     name: 'medium',

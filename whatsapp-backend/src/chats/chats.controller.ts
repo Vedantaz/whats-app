@@ -212,7 +212,7 @@ export class ChatsController {
 
   @Get('all-users')
   async getAllUsers(){
-    const users = this.chatsService.getAllChatsDebug();
+    const users = this.chatsService.getAllUsers();
     return {message: 'Notification marked as delivered', data:users}
   }
 }

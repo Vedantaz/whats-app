@@ -67,6 +67,8 @@ export default function ChatWhatsApp() {
   useEffect(() => {
     if (activeTab === "contacts") {
       fetchUsers(true); // Fetch all users except current
+    }else if (activeTab === "chats") {
+      fetchChats();
     }
   }, [activeTab]);
 
@@ -351,9 +353,10 @@ export default function ChatWhatsApp() {
 
   const fetchUsers = async (showAll: boolean = false) => {
     try {
-      const response = await axios.get("/users");
+      const response = await axios.get("/users/all-users");
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
+      console.log('getting response for all users: ', response);
       // Filter out current user
       const allUsers = response.data.filter(
         (user: User) => user._id !== currentUser._id
@@ -371,7 +374,7 @@ export default function ChatWhatsApp() {
     try {
       console.log("🔍 Fetching messages for chat:", chatId);
       const response = await axios.get(`/chats/messages/${chatId}`);
-      console.log("📨 Fetched messages:", response.data);
+      console.log("📨 Fetched messages:", response.data, response);
       setMessages(response.data || []);
       setTimeout(
         () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),

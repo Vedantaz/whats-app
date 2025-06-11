@@ -26,7 +26,8 @@ let UsersService = class UsersService {
         this.chatGateway = chatGateway;
     }
     async findByMail(email) {
-        return this.userModel.findOne({ email }).exec();
+        const normalizedEmail = email.trim().toLowerCase();
+        return this.userModel.findOne({ normalizedEmail, isDeleted: false });
     }
     async findById(id) {
         return this.userModel.findById(id).select('-password').exec();
@@ -52,6 +53,11 @@ let UsersService = class UsersService {
             ...user.toObject(),
             online: onlineUserIds.includes(user.id.toString()),
         }));
+    }
+    async getAllUsers() {
+        const users = await this.userModel.find().select('-password').exec();
+        console.log(`Fetched ${users.length} users from DB`);
+        return users;
     }
     async getOnlineUsers() {
         const onlineUserIds = this.chatGateway.getOnlineUsers();

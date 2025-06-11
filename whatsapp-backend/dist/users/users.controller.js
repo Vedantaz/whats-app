@@ -26,7 +26,8 @@ let UsersController = class UsersController {
         return this.usersService.searchUsers(query);
     }
     async getAllUsers() {
-        return this.usersService.findAllUsers();
+        const users = await this.usersService.getAllUsers();
+        return { message: "Getting all users.", data: users };
     }
     async getUser(email) {
         return this.usersService.findByMail(email);
@@ -48,7 +49,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "searchUsers", null);
 __decorate([
-    (0, common_1.Get)(),
+    (0, common_1.Get)('/all-users'),
     (0, throttler_decorators_1.LenientThrottle)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),

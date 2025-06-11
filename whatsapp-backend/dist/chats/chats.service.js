@@ -410,7 +410,7 @@ let ChatsService = ChatsService_1 = class ChatsService {
         }
     }
     async getAllUsers() {
-        const allUsers = await this.usersService.findAllUsers();
+        const allUsers = await this.usersService.getAllUsers();
         return allUsers;
     }
 };

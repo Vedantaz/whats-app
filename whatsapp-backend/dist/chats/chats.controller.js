@@ -117,7 +117,7 @@ let ChatsController = class ChatsController {
         return { status: 'success', message: 'Notification marked as delivered' };
     }
     async getAllUsers() {
-        const users = this.chatsService.getAllChatsDebug();
+        const users = this.chatsService.getAllUsers();
         return { message: 'Notification marked as delivered', data: users };
     }
 };

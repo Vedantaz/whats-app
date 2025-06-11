@@ -13,7 +13,8 @@ export class UsersService {
   ) {}
 
   async findByMail(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email }).exec();
+    const normalizedEmail = email.trim().toLowerCase();
+    return this.userModel.findOne({ normalizedEmail, isDeleted:false });
   }
 
   async findById(id: string): Promise<User | null> {
@@ -48,6 +49,12 @@ export class UsersService {
     }));
   }
 
+  async getAllUsers(){
+    const users = await this.userModel.find().select('-password').exec();
+    console.log(`Fetched ${users.length} users from DB`);
+    return users;
+  }
+
   async getOnlineUsers() {
     const onlineUserIds = this.chatGateway.getOnlineUsers();
     if (onlineUserIds.length === 0) return [];
@@ -62,4 +69,5 @@ export class UsersService {
       online: true,
     }));
   }
+
 }

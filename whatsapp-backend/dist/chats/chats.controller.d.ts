@@ -89,24 +89,10 @@ export declare class ChatsController {
     }>;
     getAllUsers(): Promise<{
         message: string;
-        data: Promise<{
-            totalChats: number;
-            chats: {
-                chatId: unknown;
-                users: {
-                    id: any;
-                    username: any;
-                    email: any;
-                }[];
-                messageCount: number;
-                lastMessage: {
-                    content: string;
-                    sender: any;
-                    createdAt: any;
-                } | null;
-                createdAt: any;
-                updatedAt: any;
-            }[];
-        }>;
+        data: Promise<(import("mongoose").Document<unknown, {}, import("../users/schema/user.schema").UserDocument, {}> & import("../users/schema/user.schema").User & import("mongoose").Document<unknown, any, any, Record<string, any>> & Required<{
+            _id: unknown;
+        }> & {
+            __v: number;
+        })[]>;
     }>;
 }

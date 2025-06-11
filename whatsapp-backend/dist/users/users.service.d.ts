@@ -45,6 +45,11 @@ export declare class UsersService {
         schema: import("mongoose").Schema;
         __v: number;
     }[]>;
+    getAllUsers(): Promise<(import("mongoose").Document<unknown, {}, UserDocument, {}> & User & import("mongoose").Document<unknown, any, any, Record<string, any>> & Required<{
+        _id: unknown;
+    }> & {
+        __v: number;
+    })[]>;
     getOnlineUsers(): Promise<{
         online: boolean;
         username: string;

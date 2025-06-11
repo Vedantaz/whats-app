@@ -560,8 +560,7 @@ export class ChatsService {
   }
 
   async getAllUsers(){
-    // Get all users from the users service
-    const allUsers = await this.usersService.findAllUsers();
+    const allUsers = await this.usersService.getAllUsers();
     return allUsers;
   }
 }

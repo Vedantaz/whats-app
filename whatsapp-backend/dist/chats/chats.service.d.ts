@@ -84,23 +84,9 @@ export declare class ChatsService {
             updatedAt: any;
         }[];
     }>;
-    getAllUsers(): Promise<{
-        online: boolean;
-        username: string;
-        email: string;
-        password: string;
-        profilePic?: string;
+    getAllUsers(): Promise<(import("mongoose").Document<unknown, {}, import("../users/schema/user.schema").UserDocument, {}> & import("../users/schema/user.schema").User & import("mongoose").Document<unknown, any, any, Record<string, any>> & Required<{
         _id: unknown;
-        $locals: Record<string, unknown>;
-        $op: "save" | "validate" | "remove" | null;
-        $where: Record<string, unknown>;
-        baseModelName?: string;
-        collection: import("mongoose").Collection;
-        db: import("mongoose").Connection;
-        errors?: import("mongoose").Error.ValidationError;
-        id?: any;
-        isNew: boolean;
-        schema: import("mongoose").Schema;
+    }> & {
         __v: number;
-    }[]>;
+    })[]>;
 }

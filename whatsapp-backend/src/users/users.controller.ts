@@ -18,10 +18,11 @@ export class UsersController {
     return this.usersService.searchUsers(query);
   }
 
-  @Get()
+  @Get('/all-users')
   @LenientThrottle() // 20 requests per 60 seconds for getting all users
   async getAllUsers() {
-    return this.usersService.findAllUsers();
+    const users = await this.usersService.getAllUsers();
+    return {message: "Getting all users.", data:users}
   }
 
   @Get('email')
