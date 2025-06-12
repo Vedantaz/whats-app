@@ -13,8 +13,7 @@ export class UsersService {
   ) {}
 
   async findByMail(email: string): Promise<User | null> {
-    const normalizedEmail = email.trim().toLowerCase();
-    return this.userModel.findOne({ normalizedEmail, isDeleted:false });
+    return this.userModel.findOne({ email });
   }
 
   async findById(id: string): Promise<User | null> {

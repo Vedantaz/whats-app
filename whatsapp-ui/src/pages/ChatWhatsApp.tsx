@@ -41,7 +41,7 @@ export default function ChatWhatsApp() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"chats" | "contacts">("chats");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [showAllUsers] = useState(false);
   const emojiRef = useRef<HTMLDivElement | null>(null);
 
   // Close emoji picker when clicking outside
@@ -148,8 +148,8 @@ export default function ChatWhatsApp() {
       initializeSocket();
 
       // Fetch initial data
-      fetchChats();
-      fetchUsers();
+      // fetchChats();
+      // fetchUsers();
 
       return () => {
         socket.off("connect");
@@ -193,9 +193,21 @@ export default function ChatWhatsApp() {
             return filteredMessages;
           });
         }
-        fetchChats();
+        // fetchChats();
+        setChats((prevChats) => {
+         const updatedChat =  prevChats.map((chat) =>
+            chat._id === messageChatId
+              ? {
+                  ...chat,
+                  lastMessage: message,
+                  updatedAt: message.createdAt,
+                }
+              : chat
+          );
+          return updatedChat;
+        });
       };
-
+  
       // Enhanced notification handlers
       const handleMessageNotification = (notificationData: any) => {
         console.log("📱 Message notification received:", notificationData);
@@ -322,7 +334,7 @@ export default function ChatWhatsApp() {
         socket.off("chatActivity", handleChatActivity);
         socket.off("globalBroadcast", handleGlobalBroadcast);
       };
-    }, [activeChat]);
+    }, [activeChat?._id]);
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -341,6 +353,7 @@ export default function ChatWhatsApp() {
     try {
       const response = await axios.get("/chats/my-chats");
       setChats(response.data || []);
+      console.log("data for chats", response.data)
 
       // Update users list after fetching chats to properly filter contacts
       setTimeout(() => {
@@ -353,19 +366,20 @@ export default function ChatWhatsApp() {
 
   const fetchUsers = async (showAll: boolean = false) => {
     try {
-      const response = await axios.get("/users/all-users");
+      // const response = await axios.get("/users/all-users");
+      const {data} = await axios.get("users/all-users");    /// it always gives you an object. that' why we did res.data.data : data: {message:"", data:[]}
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-
-      console.log('getting response for all users: ', response);
-      // Filter out current user
-      const allUsers = response.data.filter(
+      const users :User[] = Array.isArray(data?.data) ? data.data : [];
+    
+      const allUsers = users.filter(
         (user: User) => user._id !== currentUser._id
       );
-
+    
       // Always show all users except current user
       setUsers(allUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
+      setUsers([]);
     }
   };
 
@@ -701,30 +715,9 @@ export default function ChatWhatsApp() {
               // Contacts List
               <div>
                 {/* Contacts Header with Toggle */}
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {showAllUsers ? "All Users" : "New Contacts"}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setShowAllUsers(!showAllUsers);
-                        fetchUsers(showAllUsers);
-                      }}
-                      className="text-xs text-green-600 hover:text-green-700 font-medium"
-                    >
-                      {showAllUsers ? "Show New Only" : "Show All Users"}
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {showAllUsers
-                      ? "All users in the system"
-                      : "Users you haven't chatted with yet"}
-                  </p>
-                </div>
-
+           
                 {/* Users List */}
-                {users.length === 0 ? (
+                {/* {Array.isArray(users) && users.length === 0 ? (
                   <div className="p-8 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg
@@ -775,7 +768,61 @@ export default function ChatWhatsApp() {
                       </div>
                     </div>
                   ))
-                )}
+                )} */}
+
+{Array.isArray(users) && users.length > 0 ? (
+  users.map((user) => (
+    <div
+      key={user._id}
+      onClick={() => handleCreateChat(user._id)}
+      className="px-4 py-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+    >
+      <div className="flex items-center space-x-3">
+        <div className="relative">
+          <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-gray-700">
+              {user.username?.charAt(0).toUpperCase() || "U"}
+            </span>
+          </div>
+          {user.online && (
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className="font-medium text-gray-900">
+            {user.username || "Unknown"}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {user.online ? "Online" : "Offline"}
+          </p>
+        </div>
+      </div>
+    </div>
+  ))
+) : (
+  <div className="p-8 text-center">
+    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg
+        width="24"
+        height="24"
+        fill="currentColor"
+        viewBox="0 0 24 24"
+        className="text-gray-400"
+      >
+        <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    </div>
+    <p className="text-gray-600 font-medium">
+      {showAllUsers ? "No users found" : "No new contacts"}
+    </p>
+    <p className="text-gray-400 text-sm mt-1">
+      {showAllUsers
+        ? "There are no other users in the system"
+        : "You've already started conversations with everyone"}
+    </p>
+  </div>
+)}
+
               </div>
             )}
           </div>

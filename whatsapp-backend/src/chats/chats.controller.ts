@@ -46,7 +46,7 @@ export class ChatsController {
   }
 
   // Create or get existing chat with another user (FIXED)
-  @Post('create')
+  @Post('create-get-chatroom')
   @StandardThrottle() // 10 requests per 60 seconds for creating chats
   async createChatRoom(
     @Req() req: AuthenticatedRequest,
@@ -77,6 +77,34 @@ export class ChatsController {
     );
     return chat;
   }
+
+  @Get('messages/:chatId')
+  async getMessages(
+    @Param('chatId') chatId: string,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    try {
+      console.log('🔍 Getting messages for chat:', chatId);
+      const messageLimit = limit ? parseInt(limit) : 50;
+      const messageSkip = skip ? parseInt(skip) : 0;
+
+      const startTime = Date.now();
+      const messages = await this.chatsService.getMessages(
+        chatId,
+        messageLimit,
+        messageSkip,
+      );
+      const duration = Date.now() - startTime;
+
+      console.log(`✅ Fetched ${messages.length} messages in ${duration}ms`);
+      return messages;
+    } catch (error) {
+      console.error('❌ Error fetching messages:', error);
+      throw error;
+    }
+  }
+
 
   // Get or create chat with a specific user (OPTIMIZED - returns chat + messages)
   @Post('with-user')
@@ -156,33 +184,6 @@ export class ChatsController {
   @Get('debug/all-chats')
   async getAllChatsDebug() {
     return this.chatsService.getAllChatsDebug();
-  }
-
-  @Get('messages/:chatId')
-  async getMessages(
-    @Param('chatId') chatId: string,
-    @Query('limit') limit?: string,
-    @Query('skip') skip?: string,
-  ) {
-    try {
-      console.log('🔍 Getting messages for chat:', chatId);
-      const messageLimit = limit ? parseInt(limit) : 50;
-      const messageSkip = skip ? parseInt(skip) : 0;
-
-      const startTime = Date.now();
-      const messages = await this.chatsService.getMessages(
-        chatId,
-        messageLimit,
-        messageSkip,
-      );
-      const duration = Date.now() - startTime;
-
-      console.log(`✅ Fetched ${messages.length} messages in ${duration}ms`);
-      return messages;
-    } catch (error) {
-      console.error('❌ Error fetching messages:', error);
-      throw error;
-    }
   }
 
   // Notification endpoints

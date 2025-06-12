@@ -29,6 +29,34 @@ export class ChatsService {
     private redisService: RedisService,
   ) {}
 
+  async createChat(userId: string, otherUserId: string) {
+    const existingChat = await this.chatModel.findOne({
+      isGroupChat: false,
+      users: { $all: [userId, otherUserId] },
+    });
+  
+    if (existingChat) return existingChat;
+  
+    const newChat = new this.chatModel({
+      users: [userId, otherUserId],
+      isGroupChat: false,
+    });
+    return await newChat.save();
+  }
+
+  async getAllChats(userId: string) {
+    return this.chatModel
+      .find({ users: userId })
+      .populate('users', '-password')
+      .populate('latestMessage')
+      .sort({ updatedAt: -1 });
+  }
+  
+
+
+
+  ////////////////////////// creating new apis from scratch all /////////
+  
   async getUserChats(userId: string) {
     try {
       // Check Redis cache first
@@ -231,48 +259,50 @@ export class ChatsService {
       console.log(
         `🔍 Fetching messages for chat: ${chatId}, limit: ${limit}, skip: ${skip}`,
       );
+      const chatObjectId = new Types.ObjectId(chatId);   // convert string to objectId
+       // Optimized database query with indexes
+       const startTime = Date.now();
+       const messages = await this.messageModel
+         .find({ chat: chatObjectId })
+         .populate('sender', 'username _id') // Only fetch needed fields
+         .sort({ createdAt: 1 }) // Sort by creation time
+         .skip(skip)
+         .limit(limit)
+         .lean() // Use lean for better performance
+         .exec();
+         
+         const queryTime = Date.now() - startTime;
+         console.log(
+           `📊 Database query took: ${queryTime}ms for ${messages.length} messages`,
+          );
+          
+           return messages;
 
       // Check Redis cache first (only for recent messages)
-      if (skip === 0) {
-        const cachedMessages =
-          await this.redisService.getRecentMessages(chatId);
-        if (cachedMessages && cachedMessages.length > 0) {
-          this.logger.debug(
-            `Cache HIT: Found ${cachedMessages.length} messages for chat ${chatId}`,
-          );
-          return cachedMessages.slice(0, limit);
-        }
-      }
+      // if (skip === 0) {
+      //   const cachedMessages =
+      //     await this.redisService.getRecentMessages(chatId);
+      //   if (cachedMessages && cachedMessages.length > 0) {
+      //     this.logger.debug(
+      //       `Cache HIT: Found ${cachedMessages.length} messages for chat ${chatId}`,
+      //     );
+      //     return cachedMessages.slice(0, limit);
+      //   }
+      // }
 
-      this.logger.debug(
-        `Cache MISS: Fetching messages from database for chat ${chatId}`,
-      );
+      // this.logger.debug(
+      //   `Cache MISS: Fetching messages from database for chat ${chatId}`,
+      // );
 
-      // Optimized database query with indexes
-      const startTime = Date.now();
-      const messages = await this.messageModel
-        .find({ chat: chatId })
-        .populate('sender', 'username _id') // Only fetch needed fields
-        .sort({ createdAt: 1 }) // Sort by creation time
-        .skip(skip)
-        .limit(limit)
-        .lean() // Use lean for better performance
-        .exec();
-
-      const queryTime = Date.now() - startTime;
-      console.log(
-        `📊 Database query took: ${queryTime}ms for ${messages.length} messages`,
-      );
-
+     
       // Cache the result for 30 minutes (only if it's recent messages)
-      if (skip === 0) {
-        await this.redisService.cacheRecentMessages(chatId, messages, 1800);
-        this.logger.debug(
-          `Cached ${messages.length} messages for chat ${chatId}`,
-        );
-      }
+      // if (skip === 0) {
+      //   await this.redisService.cacheRecentMessages(chatId, messages, 1800);
+      //   this.logger.debug(
+      //     `Cached ${messages.length} messages for chat ${chatId}`,
+      //   );
+      // }
 
-      return messages;
     } catch (error) {
       this.logger.error(`Error fetching messages for chat ${chatId}:`, error);
       throw error;
