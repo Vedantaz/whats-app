@@ -6,10 +6,30 @@ const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
 
+<<<<<<< HEAD
+=======
+  // const handleImageUpload = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+
+  //   const reader = new FileReader();
+
+  //   reader.readAsDataURL(file);
+
+  //   reader.onload = async () => {
+  //     const base64Image = reader.result;
+  //     setSelectedImg(base64Image);
+  //     await updateProfile({ profilePic: base64Image });
+  //   };
+  // };
+
+
+>>>>>>> backend
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+<<<<<<< HEAD
     const reader = new FileReader();
 
     reader.readAsDataURL(file);
@@ -21,6 +41,20 @@ const ProfilePage = () => {
     };
   };
 
+=======
+    // For preview only
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImg(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Send file to backend
+    await updateProfile(file);
+  };
+
+
+>>>>>>> backend
   return (
     <div className="h-screen pt-20">
       <div className="max-w-2xl mx-auto p-4 py-8">
@@ -71,7 +105,11 @@ const ProfilePage = () => {
                 <User className="w-4 h-4" />
                 Full Name
               </div>
+<<<<<<< HEAD
               <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.fullName}</p>
+=======
+              <p className="px-4 py-2.5 bg-base-200 rounded-lg border">{authUser?.fullName || authUser?.username}</p>
+>>>>>>> backend
             </div>
 
             <div className="space-y-1.5">

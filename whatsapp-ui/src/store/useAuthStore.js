@@ -68,19 +68,58 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+<<<<<<< HEAD
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
     try {
       const res = await axiosInstance.put("/auth/update-profile", data, {withCredentials:true});
+=======
+  // updateProfile: async (data) => {
+  //   set({ isUpdatingProfile: true });
+  //   const formData = new FormData();
+  //   formData.append('profilePic', file);
+  //   try {
+  //     const res = await axiosInstance.put("/auth/update-profile", data, {withCredentials:true});
+  //     set({ authUser: res.data });
+  //     toast.success("Profile updated successfully");
+  //   } catch (error) {
+  //     console.log("error in update profile:", error);
+  //     toast.error(error.response.data.message);
+  //   } finally {
+  //     set({ isUpdatingProfile: false });
+  //   }
+  // },
+  updateProfile: async (file) => {
+    set({ isUpdatingProfile: true });
+    const formData = new FormData();
+    formData.append('profilePic', file);  // append the actual file
+  
+    try {
+      const res = await axiosInstance.put("/auth/update-profile", formData, {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+>>>>>>> backend
       set({ authUser: res.data });
       toast.success("Profile updated successfully");
     } catch (error) {
       console.log("error in update profile:", error);
+<<<<<<< HEAD
       toast.error(error.response.data.message);
+=======
+      toast.error(error.response?.data?.message || "Failed to update profile");
+>>>>>>> backend
     } finally {
       set({ isUpdatingProfile: false });
     }
   },
+<<<<<<< HEAD
+=======
+  
+
+>>>>>>> backend
 
   connectSocket: () => {
     const { authUser } = get();
